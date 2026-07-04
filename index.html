@@ -1,180 +1,331 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>會考數學歷屆試題純數據分析看板</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>國中數學歷屆試題數據儀表板</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        body { font-family: 'Noto Sans TC', sans-serif; }
+    </style>
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-800 font-sans">
+<body class="bg-gray-50 text-gray-800 min-h-screen">
 
-  <header class="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50 px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-    <div class="flex items-center space-x-3">
-      <div class="p-2 bg-indigo-600 text-white rounded-lg shadow-md">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 00-2-2H5a2 2 0 00-2 2v10m9-10V5a2 2 0 00-2-2h-2a2 2 0 00-2 2v14a2 2 0 002 2h2a2 2 0 002-2z" />
-        </svg>
-      </div>
-      <div>
-        <h1 class="text-xl font-bold text-slate-900">會考數學歷屆純數據分析系統 (全卷版)</h1>
-        <p class="text-xs text-slate-500">落實雙層歸類、歷屆圖表統計、無作答干擾之純展示平台</p>
-      </div>
-    </div>
-    <div class="bg-slate-100 p-1 rounded-xl border border-slate-200 flex">
-      <button id="tabYearBtn" onclick="switchTab('year')" class="px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-200 bg-white text-indigo-700 shadow-sm">📊 歷屆年份視角</button>
-      <button id="tabTrendBtn" onclick="switchTab('trend')" class="px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-200 text-slate-600 hover:text-slate-900">📈 單元趨勢總覽</button>
-    </div>
-  </header>
-
-  <main class="max-w-7xl w-full mx-auto p-4 md:p-6">
-    <section id="viewYear" class="space-y-6">
-      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-4">
-        <span class="text-sm font-bold text-slate-700">分析年份：</span>
-        <div class="flex flex-wrap gap-2" id="yearSelectorContainer"></div>
-      </div>
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center">
-          <h3 class="text-sm font-bold text-slate-800 mb-4 self-start flex items-center"><span class="w-1.5 h-4 bg-indigo-600 rounded-full mr-2"></span>大單元出題比重 (章分布)</h3>
-          <div class="w-full max-w-[320px] aspect-square flex items-center justify-center"><canvas id="pieChart"></canvas></div>
+    <header class="bg-blue-600 text-white shadow-md p-4 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold tracking-wide">📐 國中數學歷屆試題數據分析系統</h1>
+            <span class="text-sm bg-blue-700 px-3 py-1 rounded-full">民國 111 年 ～ 115 年</span>
         </div>
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <h3 class="text-sm font-bold text-slate-800 mb-4 flex items-center"><span class="w-1.5 h-4 bg-indigo-600 rounded-full mr-2"></span>細分主題題數分佈 (節分布)</h3>
-          <div class="w-full h-[320px]"><canvas id="barChart"></canvas></div>
-        </div>
-      </div>
-      <div class="space-y-4">
-        <h3 class="text-base font-bold text-slate-900 flex items-center">該屆全卷試題清單與節點</h3>
-        <div id="questionsListContainer" class="grid grid-cols-1 gap-4"></div>
-      </div>
-    </section>
+    </header>
 
-    <section id="viewTrend" class="space-y-6 hidden">
-      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label class="block text-xs font-bold text-slate-500 mb-1">第一層：大單元 (章)</label>
-          <select id="selectUnit" onchange="onUnitChange()" class="w-full bg-slate-50 border rounded-lg p-2.5 text-sm"></select>
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-500 mb-1">第二層：細分主題 (節)</label>
-          <select id="selectTopic" onchange="renderTrendView()" class="w-full bg-slate-50 border rounded-lg p-2.5 text-sm"></select>
-        </div>
-      </div>
-      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-        <h3 class="text-sm font-bold text-slate-800 mb-4 flex items-center"><span class="w-1.5 h-4 bg-emerald-500 rounded-full mr-2"></span>歷屆出題趨勢折線圖</h3>
-        <div class="w-full h-[280px]"><canvas id="lineChart"></canvas></div>
-      </div>
-      <div class="space-y-4">
-        <h3 class="text-base font-bold text-slate-900">歷屆相同單元試題縱向匯整</h3>
-        <div id="trendQuestionsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-      </div>
-    </section>
-  </main>
+    <main class="max-w-7xl mx-auto p-4 space-y-6">
 
-  <script>
-    // 嚴格遵守不腦補原則：115 年前 5 題為已知，其餘設定為「待歸類」
-    const examDatabase = [
-      { year: "115", id: "Q01", unit: "二元一次聯立方程式", topic: "解二元一次聯立方程式", img: "images/115_Q01.png", nodes: ["加減消去法的代數移項與運算"] },
-      { year: "115", id: "Q02", unit: "立體幾何圖形", topic: "柱體、錐體與空間概念", img: "images/115_Q02.png", nodes: ["正三角形內角性質", "三維角度辨析"] },
-      { year: "115", id: "Q03", unit: "平方根與畢氏定理", topic: "根式的運算", img: "images/115_Q03.png", nodes: ["最簡根式的化簡"] },
-      { year: "115", id: "Q04", unit: "統計與機率", topic: "機率", img: "images/115_Q04.png", nodes: ["古典機率的定義"] },
-      { year: "115", id: "Q05", unit: "整數運算與科學記號", topic: "整數的乘除運算", img: "images/115_Q05.png", nodes: ["負數運算變號法則"] },
-      // 全卷擴充：第 6 ~ 25 題選擇題，以及 Q26, Q27 非選題 (佔位結構)
-      ...Array.from({length: 20}, (_, i) => ({ year: "115", id: `Q${(i+6).toString().padStart(2, '0')}`, unit: "待歸類", topic: "待歸類", img: `images/115_Q${(i+6).toString().padStart(2, '0')}.png`, nodes: ["待分析節點"] })),
-      { year: "115", id: "Q26", unit: "待歸類", topic: "待歸類", img: "images/115_Q26.png", nodes: ["非選一待分析"] },
-      { year: "115", id: "Q27", unit: "待歸類", topic: "待歸類", img: "images/115_Q27.png", nodes: ["非選二待分析"] }
-    ];
+        <section class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+            <div class="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-3">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-900">📊 單屆試題分布圖表</h2>
+                    <p class="text-xs text-gray-500">選擇特定屆別，可以看出各題在各單元的分布比例</p>
+                </div>
+                <select id="yearSelect" class="border border-gray-300 rounded-lg p-2 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="115">民國 115 年會考</option>
+                    <option value="114" disabled>民國 114 年會考 (日後擴充)</option>
+                    <option value="113" disabled>民國 113 年會考 (日後擴充)</option>
+                    <option value="112" disabled>民國 112 年會考 (日後擴充)</option>
+                    <option value="111" disabled>民國 111 年會考 (日後擴充)</option>
+                </select>
+            </div>
+            <div class="w-full max-w-md mx-auto h-64 flex justify-center items-center">
+                <canvas id="distributionChart"></canvas>
+            </div>
+        </section>
 
-    const syllabusMapping = {
-      "二元一次聯立方程式": ["解二元一次聯立方程式"],
-      "立體幾何圖形": ["柱體、錐體與空間概念"],
-      "平方根與畢氏定理": ["根式的運算"],
-      "統計與機率": ["機率"],
-      "整數運算與科學記號": ["整數的乘除運算"],
-      "待歸類": ["待歸類"] // 避免系統錯誤的預設類別
-    };
+        <section class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+            <div class="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-3">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-900">📈 歷年出題趨勢折線圖</h2>
+                    <p class="text-xs text-gray-500">展示各歷屆在各單元的出題比重與趨勢變化</p>
+                </div>
+                <select id="trendUnitSelect" class="border border-gray-300 rounded-lg p-2 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </select>
+            </div>
+            <div class="w-full h-64">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </section>
 
-    const yearsList = ["115"]; // 目前僅先載入 115，日後可擴充 ["115", "114", "113"]
-    let currentActiveYear = "115";
-    let pieChartInstance = null, barChartInstance = null, lineChartInstance = null;
+        <section class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+            <div class="border-b border-gray-200 pb-3 mb-4">
+                <h2 class="text-lg font-bold text-gray-900">🔍 單元與主題歷屆題目檢視</h2>
+                <p class="text-xs text-gray-500">選擇特定單元主題，即刻撈出 111-115 出了哪些試題圖檔</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">選擇學期</label>
+                    <select id="semesterFilter" class="w-full border border-gray-300 rounded-lg p-2 bg-white text-sm"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">選擇單元（章）</label>
+                    <select id="unitFilter" class="w-full border border-gray-300 rounded-lg p-2 bg-white text-sm"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">選擇主題（幾之幾）</label>
+                    <select id="themeFilter" class="w-full border border-gray-300 rounded-lg p-2 bg-white text-sm"></select>
+                </div>
+            </div>
 
-    window.onload = () => { renderYearSelectors(); initSyllabusDropdowns(); loadYearView(currentActiveYear); };
+            <div id="questionsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                </div>
+        </section>
+    </main>
 
-    function switchTab(tab) {
-      document.getElementById('viewYear').classList.toggle('hidden', tab !== 'year');
-      document.getElementById('viewTrend').classList.toggle('hidden', tab !== 'trend');
-      if (tab === 'year') loadYearView(currentActiveYear); else renderTrendView();
-    }
+    <script>
+        // 1. 課綱地圖原始事實資料庫 (對齊您提供的官方名稱事實)
+        const curriculumMap = {
+            "七年級上學期": {
+                "第一章 整數運算與科學記號": ["1-1 數與數線", "1-2 整數的加減運算", "1-3 整數的乘除運算", "1-4 指數記法與科學記號"],
+                "第二章 因數分解與分數運算": ["2-1 質因數分解", "2-2 公因數與公倍數", "2-3 分數的四則運算", "2-4 指數律"],
+                "第三章 一元一次方程式": ["3-1 以符號列式與運算", "3-2 一元一次方程式的列式與求解", "3-3 一元一次方程式的應用"]
+            },
+            "七年級下學期": {
+                "第一章 二元一次聯立方程式": ["1-1 二元一次方程式", "1-2 解二元一次聯立方程式", "1-3 二元一次聯立方程式的應用"],
+                "第二章 平面直角坐標系": ["2-1 直角坐標平面", "2-2 二元一次方程式的圖形"],
+                "第三章 比例": ["3-1 比例式", "3-2 正比與反比"],
+                "第四章 一元一次不等式": ["4-1 一元一次不等式及其解", "4-2 解一元一次不等式及其應用"],
+                "第五章 統計圖表與資料分析": ["5-1 統計圖表與平均數、中位數、眾數"],
+                "第六章 生活中的幾何圖形": ["6-1 幾何圖形、線對稱與三視圖"]
+            },
+            "八年級上學期": {
+                "第一章 乘法公式與多項式": ["1-1 乘法公式", "1-2 多項式的加法與減法", "1-3 多項式的乘法與除法"],
+                "第二章 平方根與畢氏定理": ["2-1 平方根與近似值", "2-2 根式的運算", "2-3 畢氏定理"],
+                "第三章 因式分解": ["3-1 提公因式法與乘法公式因式分解", "3-2 利用十字交乘法因式分解"],
+                "第四章 一元二次方程式": ["4-1 因式分解法解一元二次方程式", "4-2 配方法與一元二次方程式的公式解", "4-3 一元二次方程式的應用"],
+                "第五章 統計資料處理與圖表": ["5-1 相對與累積次數分配圖表"]
+            },
+            "八年級下學期": {
+                "第一章 數列與等差級數": ["1-1 等差數列", "1-2 等差級數", "1-3 等比數列"],
+                "第二章 函數及其圖形": ["2-1 一次函數與函數圖形"],
+                "第三章 三角形的性質與尺規作圖": ["3-1 內角與外角", "3-2 基本尺規作圖", "3-3 三角形全等與應用", "3-4 三角形的邊角關係"],
+                "第四章 平行與四邊形": ["4-1 平行線與截角性質", "4-2 平行四邊形", "4-3 特殊的四邊形與梯形"]
+            },
+            "九年級上學期": {
+                "第一章 比例線段與相似形": ["1-1 連比", "1-2 比例線段", "1-3 相似形"],
+                "第二章 圓的性質": ["2-1 圓形及點、直線、圓之間的關係", "2-2 弧與圓周角"],
+                "第三章 推理證明與三角形的心": ["3-1 推理與證明", "3-2 三角形的外心、內心與重心"]
+            },
+            "九年級下學期": {
+                "第一章 二次函數": ["1-1 二次函數及其圖形", "1-2 二次函數的最大值或最小值"],
+                "第二章 統計與機率": ["2-1 統計數據的分布（四分位數與盒狀圖）", "2-2 機率"],
+                "第三章 立體幾何圖形": ["3-1 柱體、錐體與空間概念"]
+            }
+        };
 
-    function renderYearSelectors() {
-      document.getElementById('yearSelectorContainer').innerHTML = yearsList.map(y => 
-        `<button onclick="changeYear('${y}')" class="px-4 py-2 text-xs font-bold rounded-lg border bg-indigo-600 text-white">${y} 學年度</button>`
-      ).join('');
-    }
+        // 2. 115年度黃金標準題庫資料庫 (含效果 5 複合知識節點)
+        const examDatabase = [
+            { id: "115_01", year: 115, num: "選擇 1", unit: "第一章 二元一次聯立方程式", theme: "1-2 解二元一次聯立方程式", nodes: ["1-2 解二元一次聯立方程式"] },
+            { id: "115_02", year: 115, num: "選擇 2", unit: "第三章 立體幾何圖形", theme: "3-1 柱體、錐體與空間概念", nodes: ["3-1 柱體、錐體與空間概念"] },
+            { id: "115_03", year: 115, num: "選擇 3", unit: "第二章 平方根與畢氏定理", theme: "2-2 根式的運算", nodes: ["2-2 根式的運算"] },
+            { id: "115_04", year: 115, num: "選擇 4", unit: "第二章 統計與機率", theme: "2-2 機率", nodes: ["2-2 機率"] },
+            { id: "115_05", year: 115, num: "選擇 5", unit: "第二章 因數分解與分數運算", theme: "2-3 分數的四則運算", nodes: ["2-3 分數的四則運算"] },
+            { id: "115_06", year: 115, num: "選擇 6", unit: "第五章 統計圖表與資料分析", theme: "5-1 統計圖表與平均數、中位數、眾數", nodes: ["5-1 統計圖表與平均數、中位數、眾數"] },
+            { id: "115_07", year: 115, num: "選擇 7", unit: "第一章 乘法公式與多項式", theme: "1-3 多項式的乘法與除法", nodes: ["1-3 多項式的乘法與除法"] },
+            { id: "115_08", year: 115, num: "選擇 8", unit: "第一章 整數運算與科學記號", theme: "1-4 指數記法與科學記號", nodes: ["1-4 指數記法與科學記號"] },
+            { id: "115_09", year: 115, num: "選擇 9", unit: "第四章 一元二次方程式", theme: "4-1 因式分解法解一元二次方程式", nodes: ["4-1 因式分解法解一元二次方程式"] },
+            { id: "115_10", year: 115, num: "選擇 10", unit: "第三章 比例", theme: "3-1 比例式", nodes: ["3-1 比例式"] },
+            { id: "115_11", year: 115, num: "選擇 11", unit: "第一章 整數運算與科學記號", theme: "1-2 整數的加減運算", nodes: ["1-2 整數的加減運算"] },
+            { id: "115_12", year: 115, num: "選擇 12", unit: "第三章 三角形的性質與尺規作圖", theme: "3-3 三角形全等與應用", nodes: ["3-3 三角形全等與應用"] },
+            { id: "115_13", year: 115, num: "選擇 13", unit: "第二章 平面直角坐標系", theme: "2-2 二元一次方程式的圖形", nodes: ["2-2 二元一次方程式的圖形"] },
+            { id: "115_14", year: 115, num: "選擇 14", unit: "第一章 二次函數", theme: "1-1 二次函數及其圖形", nodes: ["1-1 二次函數及其圖形", "1-2 二次函數的最大值或最小值"] },
+            { id: "115_15", year: 115, num: "選擇 15", unit: "第三章 三角形的性質與尺規作圖", theme: "3-1 內角與外角", nodes: ["3-1 內角與外角"] },
+            { id: "115_16", year: 115, num: "選擇 16", unit: "第三章 推理證明與三角形的心", theme: "3-2 三角形的外心、內心與重心", nodes: ["3-2 三角形的外心、內心與重心"] },
+            { id: "115_17", year: 115, num: "選擇 17", unit: "第一章 整數運算與科學記號", theme: "1-4 指數記法與科學記號", nodes: ["1-4 指數記法與科學記號"] },
+            { id: "115_18", year: 115, num: "選擇 18", unit: "第四章 平行與四邊形", theme: "4-3 特殊的四邊形與梯形", nodes: ["4-3 特殊的四邊形與梯形", "2-3 畢氏定理", "2-1 圓形及點、直線、圓之間的關係"] },
+            { id: "115_19", year: 115, num: "選擇 19", unit: "第二章 圓的性質", theme: "2-2 弧與圓周角", nodes: ["2-2 弧與圓周角"] },
+            { id: "115_20", year: 115, num: "選擇 20", unit: "第二章 因數分解與分數運算", theme: "2-1 質因數分解", nodes: ["2-1 質因數分解"] },
+            { id: "115_21", year: 115, num: "選擇 21", unit: "第一章 比例線段與相似形", theme: "1-3 相似形", nodes: ["1-3 相似形", "1-2 比例線段"] },
+            { id: "115_22", year: 115, num: "選擇 22", unit: "第四章 平行與四邊形", theme: "4-2 平行四邊形", nodes: ["4-2 平行四邊形", "3-3 三角形全等與應用"] },
+            { id: "115_23", year: 115, num: "選擇 23 (題組)", unit: "第三章 比例", theme: "3-2 正比與反比", nodes: ["3-2 正比與反比"] },
+            { id: "115_24", year: 115, num: "選擇 24 (題組)", unit: "第三章 一元一次方程式", theme: "3-2 一元一次方程式的列式與求解", nodes: ["3-2 一元一次方程式的列式與求解"] },
+            { id: "115_25", year: 115, num: "選擇 25 (題組)", unit: "第四章 一元一次不等式", theme: "4-1 一元一次不等式及其解", nodes: ["4-1 一元一次不等式及其解"] },
+            { id: "115_non_01", year: 115, num: "非選 1", unit: "第一章 數列與等差級數", theme: "1-1 等差數列", nodes: ["1-1 等差數列"] },
+            { id: "115_non_02_1", year: 115, num: "非選 2(1)", unit: "第三章 三角形的性質與尺規作圖", theme: "3-1 內角與外角", nodes: ["3-1 內角與外角"] },
+            { id: "115_non_02_2", year: 115, num: "非選 2(2)", unit: "第三章 三角形的性質與尺規作圖", theme: "3-1 內角與外角", nodes: ["3-1 內角與外角", "2-3 畢氏定理"] }
+        ];
 
-    function changeYear(year) { currentActiveYear = year; loadYearView(year); }
+        // 3. 初始化圖表變數
+        let distChart, trendChart;
 
-    function loadYearView(year) {
-      const data = examDatabase.filter(d => d.year === year);
-      const unitCounts = {}, topicCounts = {};
-      data.forEach(d => { if(d.unit !== "待歸類") { unitCounts[d.unit] = (unitCounts[d.unit] || 0) + 1; topicCounts[d.topic] = (topicCounts[d.topic] || 0) + 1; }});
-      
-      renderPieChart(Object.keys(unitCounts), Object.values(unitCounts));
-      renderBarChart(Object.keys(topicCounts), Object.values(topicCounts));
-      
-      document.getElementById('questionsListContainer').innerHTML = data.map(q => `
-        <div class="bg-white rounded-xl border shadow-sm p-5 flex flex-col space-y-4">
-          <div class="flex flex-wrap items-center gap-2">
-            <span class="bg-indigo-50 text-indigo-700 text-xs font-bold px-2 py-1 border border-indigo-200">第 ${q.id.replace('Q','')} 題</span>
-            <span class="${q.unit === '待歸類' ? 'bg-slate-300' : 'bg-slate-800'} text-white text-xs px-2 py-0.5 rounded">${q.unit}</span>
-            <span class="${q.topic === '待歸類' ? 'bg-slate-200 text-slate-500' : 'bg-slate-500 text-white'} text-xs px-2 py-0.5 rounded">${q.topic}</span>
-          </div>
-          <div class="bg-slate-50 rounded-lg border p-4 flex justify-center items-center min-h-[100px]">
-            <img src="${q.img}" alt="尚未產生截圖: ${q.img}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" class="max-h-[220px] object-contain" />
-            <p class="text-xs text-slate-400 hidden">圖片尚未匯入: ${q.img}</p>
-          </div>
-        </div>
-      `).join('');
-    }
+        window.addEventListener('DOMContentLoaded', () => {
+            initFilters();
+            renderDistributionChart("115");
+            renderTrendChart();
+            updateQuestionGrid();
+        });
 
-    function initSyllabusDropdowns() {
-      const uSelect = document.getElementById('selectUnit');
-      uSelect.innerHTML = Object.keys(syllabusMapping).filter(u => u !== "待歸類").map(u => `<option value="${u}">${u}</option>`).join('');
-      onUnitChange();
-    }
+        // 4. 三級下拉選單動態綁定邏輯
+        function initFilters() {
+            const semSelect = document.getElementById('semesterFilter');
+            const unitSelect = document.getElementById('unitFilter');
+            const themeSelect = document.getElementById('themeFilter');
+            const trendUnitSelect = document.getElementById('trendUnitSelect');
 
-    function onUnitChange() {
-      const topic = syllabusMapping[document.getElementById('selectUnit').value] || [];
-      document.getElementById('selectTopic').innerHTML = topic.map(t => `<option value="${t}">${t}</option>`).join('');
-      renderTrendView();
-    }
+            // 填入學期
+            Object.keys(curriculumMap).forEach(sem => {
+                semSelect.innerHTML += `<option value="${sem}">${sem}</option>`;
+            });
 
-    function renderTrendView() {
-      const t = document.getElementById('selectTopic').value;
-      const trendData = yearsList.map(y => examDatabase.filter(d => d.year === y && d.topic === t).length).reverse();
-      renderLineChart(["115年"], trendData, t); // 擴充年份時請同步修改標籤
-      
-      const qData = examDatabase.filter(d => d.topic === t);
-      document.getElementById('trendQuestionsContainer').innerHTML = qData.length ? qData.map(q => `
-        <div class="bg-white rounded-xl border p-4 flex flex-col space-y-3">
-          <span class="text-xs font-bold text-emerald-700">${q.year}年 · 第 ${q.id.replace('Q','')} 題</span>
-          <img src="${q.img}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" class="max-h-[160px] object-contain" />
-          <p class="text-xs text-slate-400 hidden">缺圖: ${q.img}</p>
-        </div>`).join('') : '<p class="text-sm text-slate-400">暫無數據</p>';
-    }
+            // 順便把所有單元塞進趨勢圖選單
+            Object.keys(curriculumMap).forEach(sem => {
+                Object.keys(curriculumMap[sem]).forEach(unit => {
+                    trendUnitSelect.innerHTML += `<option value="${unit}">${unit}</option>`;
+                });
+            });
 
-    function renderPieChart(lbls, data) {
-      if(pieChartInstance) pieChartInstance.destroy();
-      pieChartInstance = new Chart(document.getElementById('pieChart').getContext('2d'), { type: 'pie', data: { labels: lbls, datasets: [{ data: data, backgroundColor: ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'] }] } });
-    }
-    function renderBarChart(lbls, data) {
-      if(barChartInstance) barChartInstance.destroy();
-      barChartInstance = new Chart(document.getElementById('barChart').getContext('2d'), { type: 'bar', data: { labels: lbls, datasets: [{ label: '題數', data: data, backgroundColor: '#6366f1' }] }, options: { scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } } });
-    }
-    function renderLineChart(lbls, data, title) {
-      if(lineChartInstance) lineChartInstance.destroy();
-      lineChartInstance = new Chart(document.getElementById('lineChart').getContext('2d'), { type: 'line', data: { labels: lbls, datasets: [{ label: title, data: data, borderColor: '#10b981', fill: true, tension: 0.1 }] }, options: { scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } } });
-    }
-  </script>
+            function updateUnits() {
+                const sem = semSelect.value;
+                unitSelect.innerHTML = '';
+                Object.keys(curriculumMap[sem]).forEach(unit => {
+                    unitSelect.innerHTML += `<option value="${unit}">${unit}</option>`;
+                });
+                updateThemes();
+            }
+
+            function updateThemes() {
+                const sem = semSelect.value;
+                const unit = unitSelect.value;
+                themeSelect.innerHTML = '';
+                curriculumMap[sem][unit].forEach(theme => {
+                    themeSelect.innerHTML += `<option value="${theme}">${theme}</option>`;
+                });
+                updateQuestionGrid();
+            }
+
+            semSelect.addEventListener('change', updateUnits);
+            unitSelect.addEventListener('change', updateThemes);
+            themeSelect.addEventListener('change', updateQuestionGrid);
+            trendUnitSelect.addEventListener('change', renderTrendChart);
+
+            updateUnits();
+        }
+
+        // 5. 渲染效果 2 - 單屆分布圓餅圖
+        function renderDistributionChart(year) {
+            const ctx = document.getElementById('distributionChart').getContext('2d');
+            const filtered = examDatabase.filter(q => q.year == year);
+            
+            const counts = {};
+            filtered.forEach(q => {
+                counts[q.unit] = (counts[q.unit] || 0) + 1;
+            });
+
+            if (distChart) distChart.destroy();
+
+            distChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(counts),
+                    datasets: [{
+                        data: Object.values(counts),
+                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } }
+                }
+            });
+        }
+
+        // 6. 渲染效果 6 - 歷年出題趨勢折線圖
+        function renderTrendChart() {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            const targetUnit = document.getElementById('trendUnitSelect').value;
+            
+            // X 軸固定為近 5 年時間軸
+            const years = ['111', '112', '113', '114', '115'];
+            
+            // 目前僅 115 有數據，其餘年份預設為 0 (留待日後往前搜集擴充)
+            const dataPoints = years.map(y => {
+                if (y === '115') {
+                    return examDatabase.filter(q => q.year == 115 && q.unit === targetUnit).length;
+                }
+                return 0; 
+            });
+
+            if (trendChart) trendChart.destroy();
+
+            trendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: years.map(y => `民國 ${y} 年`),
+                    datasets: [{
+                        label: `${targetUnit} 出題數量趨勢`,
+                        data: dataPoints,
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.2,
+                        fill: true,
+                        pointRadius: 5,
+                        pointBackgroundColor: '#2563eb'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                    }
+                }
+            });
+        }
+
+        // 7. 渲染效果 3 & 5 - 依照主題篩選出歷屆題目與知識節點
+        function updateQuestionGrid() {
+            const targetTheme = document.getElementById('themeFilter').value;
+            const container = document.getElementById('questionsContainer');
+            container.innerHTML = '';
+
+            // 核心邏輯：只要複合標籤 nodes 包含此主題，就判定過關！
+            const matchedQuestions = examDatabase.filter(q => q.nodes.includes(targetTheme));
+
+            if (matchedQuestions.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center py-8 text-gray-400 text-sm">⚠️ 民國 111-115 年此主題尚無試題數據，或留待往前搜集。</div>`;
+                return;
+            }
+
+            matchedQuestions.forEach(q => {
+                // 渲染細部知識節點標籤
+                const tagsHtml = q.nodes.map(node => 
+                    `<span class="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded border border-blue-100 font-medium">🏷️ ${node}</span>`
+                ).join(' ');
+
+                const card = `
+                    <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-xs hover:shadow-md transition-shadow">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="bg-gray-100 text-gray-700 font-bold text-xs px-2.5 py-1 rounded-md">${q.year}年會考 - ${q.num}</span>
+                            <span class="text-xs text-gray-400">ID: ${q.id}</span>
+                        </div>
+                        
+                        <div class="bg-gray-100 rounded-lg h-40 flex items-center justify-center border border-dashed border-gray-300 text-gray-400 text-sm font-mono mb-4 overflow-hidden">
+                            [ 試題 PNG 圖片區塊 ]<br>
+                            images/${q.year}/${q.id}.png
+                        </div>
+
+                        <div>
+                            <p class="text-xs font-semibold text-gray-500 mb-1.5">🧠 包含知識節點：</p>
+                            <div class="flex flex-wrap gap-1.5">
+                                ${tagsHtml}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += card;
+            });
+        }
+    </script>
 </body>
 </html>
