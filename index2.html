@@ -1,0 +1,732 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>國中數學歷屆試題數據分析與管理系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        body { font-family: 'Noto Sans TC', sans-serif; }
+        /* 隱藏滾動條但保持功能 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen flex flex-col">
+
+    <header class="bg-slate-900 text-white shadow-md px-6 py-4 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <span class="text-2xl">📐</span>
+                <div>
+                    <h1 class="text-lg font-bold tracking-wide">國中數學歷屆試題數據分析系統</h1>
+                    <p class="text-xs text-slate-400 mt-0">統計圖表與雙欄試題大圖即時對照</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button id="btnToggleAdminSidebar" class="flex items-center gap-1.5 text-xs bg-slate-800 hover:bg-slate-700 px-3 py-2 rounded-lg border border-slate-700 cursor-pointer transition-all">
+                    <span>⚙️</span> <span>管理後台</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div id="adminSidebar" class="fixed inset-y-0 left-0 w-80 bg-slate-800 text-white shadow-2xl z-50 transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col">
+        <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900">
+            <h3 class="font-bold text-sm tracking-wider flex items-center gap-2"><span>🔒</span>系統設定與管理</h3>
+            <button id="btnCloseSidebar" class="text-slate-400 hover:text-white text-sm">✕</button>
+        </div>
+        
+        <div id="adminLoginWallet" class="p-6 flex-1 flex flex-col justify-center space-y-3">
+            <p class="text-xs text-slate-400 text-center">請輸入管理者密碼以開啟管理功能</p>
+            <input type="password" id="adminPwdInput" placeholder="請輸入密碼" class="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+            <button id="btnAdminLogin" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 rounded font-medium transition-colors">登入後台</button>
+        </div>
+
+        <div id="adminMainControls" class="hidden flex-1 overflow-y-auto p-4 space-y-6 no-scrollbar">
+            <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-700">
+                <h4 class="text-xs font-bold text-slate-300 mb-2 flex items-center gap-1">🔑 變更管理者密碼</h4>
+                <div class="flex gap-2">
+                    <input type="password" id="newPasswordInput" placeholder="新密碼" class="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs flex-1 text-white focus:outline-none">
+                    <button id="btnSavePassword" class="bg-amber-600 hover:bg-amber-700 text-white text-xs px-3 py-1 rounded transition-colors">修改</button>
+                </div>
+            </div>
+
+            <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-700 space-y-2">
+                <h4 class="text-xs font-bold text-slate-300 flex items-center gap-1">📊 步驟一：匯入試題對照表</h4>
+                <p class="text-[10px] text-slate-400 leading-relaxed">請上傳包含「年分、題號、單元、主題」欄位的 Excel/CSV 試算表，系統將自動歸類題目並更新圖表數據。</p>
+                <div id="excelDropZone" class="border-2 border-dashed border-slate-600 rounded-lg p-3 bg-slate-800/50 hover:bg-slate-800 text-center cursor-pointer transition-all">
+                    <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" class="hidden">
+                    <span class="text-xl">📁</span>
+                    <p class="text-[11px] font-bold mt-1 text-slate-200">拖曳或點擊選取試算表</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-700 space-y-3">
+                <h4 class="text-xs font-bold text-slate-300 flex items-center gap-1">🖼️ 步驟二：批量/單題圖片上傳</h4>
+                <div>
+                    <label class="text-[10px] text-slate-400">選擇上傳目標年度</label>
+                    <select id="adminUploadYearSelect" class="w-full bg-slate-700 border border-slate-600 rounded p-1 text-xs text-white mt-1"></select>
+                </div>
+                <div id="imageDropZone" class="border-2 border-dashed border-amber-500/50 rounded-lg p-4 bg-slate-800/50 hover:bg-slate-800 text-center cursor-pointer transition-all">
+                    <input type="file" id="imageFileInput" accept="image/*" multiple class="hidden">
+                    <span class="text-xl">📤</span>
+                    <p class="text-[11px] font-bold text-amber-400 mt-1">拖曳或點擊上傳圖片圖檔</p>
+                    <p class="text-[9px] text-slate-400 mt-0.5">💡 系統會自動辨識並黏合符合題號名稱的圖檔</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-700 space-y-2">
+                <div class="flex justify-between items-center">
+                    <h4 class="text-xs font-bold text-slate-300">📋 年度圖片對照管理</h4>
+                    <select id="adminManageYearSelect" class="bg-slate-700 border border-slate-600 rounded px-1 py-0.5 text-[10px] text-white"></select>
+                </div>
+                <div id="adminImageTableContainer" class="space-y-1.5 max-h-48 overflow-y-auto text-[11px] pr-1 no-scrollbar"></div>
+            </div>
+
+            <div class="pt-2">
+                <button id="btnAdminLogout" class="w-full bg-slate-900 hover:bg-red-900 text-slate-300 hover:text-white text-xs py-2 rounded transition-colors border border-slate-700">安全登出管理後台</button>
+            </div>
+        </div>
+    </div>
+
+    <main class="max-w-7xl mx-auto w-full p-4 lg:p-6 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <div class="lg:col-span-5 space-y-6 flex flex-col">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                <span class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">📊 篩選會考年度數據源</span>
+                <div id="yearButtonsGroup" class="flex flex-wrap gap-2">
+                    </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex flex-col flex-1">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h2 class="text-sm font-bold text-gray-900 flex items-center gap-1"><span>📈</span> <span id="chartTitle">歷屆考題單元分佈比重</span></h2>
+                        <p class="text-[10px] text-gray-400 mt-0.5">點擊圖表單元可與右側題目大圖即時連動篩選</p>
+                    </div>
+                    <div class="flex bg-gray-100 p-0.5 rounded-md text-[10px]">
+                        <button id="btnChartBar" class="px-2 py-1 rounded bg-white text-gray-800 font-medium shadow-sm transition-all">長條圖</button> 
+                        <button id="btnChartPie" class="px-2 py-1 rounded text-gray-500 hover:text-gray-800 transition-all">圓餅圖</button>
+                    </div>
+                </div>
+
+                <button id="btnClearChartFilter" class="hidden mb-3 text-left text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer transition-colors font-medium">
+                    ← 清除圖表單元篩選 (返回顯示全部題目)
+                </button>
+
+                <div class="relative w-full h-72 lg:h-96 flex items-center justify-center mt-auto">
+                    <canvas id="mainAnalysisChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="lg:col-span-7 bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex flex-col min-h-[550px]">
+            <div class="border-b border-gray-100 pb-3 mb-4 flex justify-between items-center">
+                <div>
+                    <h2 class="text-sm font-bold text-gray-900 flex items-center gap-1.5"><span>🔍</span> <span>試題清單與雙欄大圖對照</span></h2>
+                    <p class="text-[10px] text-blue-600 font-medium mt-0.5" id="currentScopeIndicator">當前範圍：顯示全部年度試題數據</p>
+                </div>
+                <span id="filteredCountTag" class="text-[11px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-bold"></span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 flex-1 items-stretch">
+                <div id="questionListCol" class="md:col-span-4 space-y-2 max-h-[500px] overflow-y-auto pr-1 no-scrollbar">
+                    </div>
+                
+                <div id="questionDetailCol" class="md:col-span-8 border border-gray-200 rounded-xl bg-slate-50 p-4 flex flex-col justify-between min-h-[380px]">
+                    <div id="detailEmptyState" class="m-auto text-center text-gray-400 text-xs space-y-2">
+                        <p class="text-3xl">🖼️</p>
+                        <p class="font-medium text-gray-500">請點選左側試題代號進行大圖對照</p>
+                        <p class="text-[10px] text-gray-400">點擊左側統計圖表亦可縮小題目篩選範圍</p>
+                    </div>
+
+                    <div id="detailContent" class="hidden flex flex-col h-full justify-between">
+                        <div class="space-y-3 flex-1 flex flex-col">
+                            <div class="flex justify-between items-center border-b border-gray-200 pb-2 bg-slate-50">
+                                <h4 id="detailTitle" class="font-bold text-xs text-blue-900"></h4>
+                                <span id="detailId" class="text-[9px] font-mono bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded"></span>
+                            </div>
+                            
+                            <div class="bg-white rounded-lg border border-gray-300 p-3 min-h-[260px] flex-1 flex items-center justify-center text-center shadow-inner overflow-hidden relative">
+                                <img id="detailImg" class="max-h-72 max-w-full object-contain hidden transition-all duration-200">
+                                <div id="noImgWarning" class="text-gray-400 text-[11px] space-y-1 hidden">
+                                    <p class="text-xl">⚠️</p>
+                                    <p>此試題尚未上傳對應圖片圖檔</p>
+                                    <p class="text-[9px] text-slate-400">請開啟管理後台拖曳上傳對應此題號的圖片</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 pt-3 border-t border-gray-200 bg-slate-50">
+                            <span class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">🎯 歸屬知識節點（單元主題）</span>
+                            <div class="flex flex-wrap gap-2">
+                                <span id="nodeUnitTag" class="text-[11px] bg-blue-600 text-white px-2.5 py-1 rounded-md font-medium shadow-2xs"></span>
+                                <span id="nodeThemeTag" class="text-[11px] bg-emerald-600 text-white px-2.5 py-1 rounded-md font-medium shadow-2xs"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 內建預設初使化試題數據陣列 (方案B格式：包含年分、題號、單元、主題，且無獨立隨機節點)
+        const defaultDatabase = [
+            { id: "115_01", year: "115", num: "選擇 1", unit: "第一章 整數運算與科學記號", theme: "1-2 整數的加減運算", imageName: "選擇 1.png", imageBase64: "" },
+            { id: "115_02", year: "115", num: "選擇 2", unit: "第三章 立體幾何圖形", theme: "3-1 柱體、錐體與空間概念", imageName: "選擇 2.png", imageBase64: "" },
+            { id: "115_03", year: "115", num: "選擇 3", unit: "第二章 平方根與畢氏定理", theme: "2-2 根式的運算", imageName: "選擇 3.png", imageBase64: "" },
+            { id: "115_04", year: "115", num: "選擇 4", unit: "第二章 統計與機率", theme: "2-2 機率", imageName: "", imageBase64: "" },
+            { id: "115_05", year: "115", num: "選擇 5", unit: "第二章 因數分解與分數運算", theme: "2-3 分數的四則運算", imageName: "", imageBase64: "" }
+        ];
+
+        // 全域狀態管理
+        let examDatabase = [];
+        let currentFilterYear = "115"; // 預設顯示115年度
+        let currentFilterUnitTheme = null; // 用於點擊圖表單元主題時的連動篩選
+        let chartInstance = null;
+        let globalChartType = "bar";
+        let isAdminAuthenticated = false;
+        let activeSingleUploadId = null; // 用於點選特定題號進行更換圖片的單題緩衝
+
+        // 初始化加載
+        window.addEventListener('DOMContentLoaded', () => {
+            initLocalStorage();
+            loadDatabase();
+            renderYearButtons();
+            setupEventListeners();
+            refreshSystemUI();
+        });
+
+        // 確保 LocalStorage 具有基本金鑰
+        function initLocalStorage() {
+            if (!localStorage.getItem('admin_pwd_gate')) {
+                localStorage.setItem('admin_pwd_gate', '75947'); // 預設密碼 75947
+            }
+        }
+
+        // 讀取本地端數據庫
+        function loadDatabase() {
+            const stored = localStorage.getItem('github_exam_db');
+            if (stored) {
+                try { examDatabase = JSON.parse(stored); } 
+                catch(e) { examDatabase = [...defaultDatabase]; }
+            } else {
+                examDatabase = [...defaultDatabase];
+                saveDatabase();
+            }
+        }
+
+        function saveDatabase() {
+            localStorage.setItem('github_exam_db', JSON.stringify(examDatabase));
+        }
+
+        // 動態渲染主畫面的年度篩選按鈕組
+        function renderYearButtons() {
+            const container = document.getElementById('yearButtonsGroup');
+            container.innerHTML = "";
+            
+            // 取得目前資料庫中所有的不重複年度並排序
+            const years = [...new Set(examDatabase.map(item => item.year))].sort((a,b) => b - a);
+            
+            // 加上「顯示全部」按鈕
+            const allBtn = document.createElement('button');
+            allBtn.innerText = "顯示全部年度";
+            allBtn.className = currentFilterYear === "all" 
+                ? "bg-blue-600 text-white font-medium text-xs py-2 px-3 rounded-lg shadow-sm cursor-pointer"
+                : "bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium text-xs py-2 px-3 rounded-lg cursor-pointer transition-colors";
+            allBtn.addEventListener('click', () => {
+                currentFilterYear = "all";
+                currentFilterUnitTheme = null;
+                renderYearButtons();
+                refreshSystemUI();
+            });
+            container.appendChild(allBtn);
+
+            // 渲染個別年度按鈕
+            years.forEach(yr => {
+                const btn = document.createElement('button');
+                btn.innerText = `${yr} 年度會考`;
+                btn.className = currentFilterYear === yr 
+                    ? "bg-blue-600 text-white font-medium text-xs py-2 px-3 rounded-lg shadow-sm cursor-pointer"
+                    : "bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium text-xs py-2 px-3 rounded-lg cursor-pointer transition-colors";
+                btn.addEventListener('click', () => {
+                    currentFilterYear = yr;
+                    currentFilterUnitTheme = null; // 切換年度時重設圖表篩選
+                    renderYearButtons();
+                    refreshSystemUI();
+                });
+                container.appendChild(btn);
+            });
+
+            // 同步更新管理後台中的下拉選單
+            updateAdminYearSelects(years);
+        }
+
+        // 更新管理後台的下拉選單選項
+        function updateAdminYearSelects(years) {
+            const upSelect = document.getElementById('adminUploadYearSelect');
+            const mgSelect = document.getElementById('adminManageYearSelect');
+            
+            const currentUpVal = upSelect.value;
+            const currentMgVal = mgSelect.value;
+
+            upSelect.innerHTML = "";
+            mgSelect.innerHTML = "";
+
+            years.forEach(yr => {
+                const op1 = document.createElement('option');
+                op1.value = yr; op1.innerText = `${yr} 年度`;
+                upSelect.appendChild(op1);
+
+                const op2 = document.createElement('option');
+                op2.value = yr; op2.innerText = `${yr} 年度`;
+                mgSelect.appendChild(op2);
+            });
+
+            if(currentUpVal) upSelect.value = currentUpVal;
+            if(currentMgVal) mgSelect.value = currentMgVal;
+        }
+
+        // 綁定所有事件處理程序
+        function setupEventListeners() {
+            // 側邊欄開關控制
+            document.getElementById('btnToggleAdminSidebar').addEventListener('click', () => {
+                document.getElementById('adminSidebar').classList.remove('-translate-x-full');
+            });
+            document.getElementById('btnCloseSidebar').addEventListener('click', () => {
+                document.getElementById('adminSidebar').classList.add('-translate-x-full');
+            });
+
+            // 後台密碼登入
+            document.getElementById('btnAdminLogin').addEventListener('click', () => {
+                const inputPwd = document.getElementById('adminPwdInput').value;
+                const correctPwd = localStorage.getItem('admin_pwd_gate');
+                if (inputPwd === correctPwd) {
+                    isAdminAuthenticated = true;
+                    document.getElementById('adminLoginWallet').classList.add('hidden');
+                    document.getElementById('adminMainControls').classList.remove('hidden');
+                    renderAdminImageTable();
+                } else {
+                    alert('密碼錯誤！請重新輸入。');
+                }
+            });
+
+            // 後台安全登出
+            document.getElementById('btnAdminLogout').addEventListener('click', () => {
+                isAdminAuthenticated = false;
+                document.getElementById('adminPwdInput').value = "";
+                document.getElementById('adminLoginWallet').classList.remove('hidden');
+                document.getElementById('adminMainControls').classList.add('hidden');
+            });
+
+            // 自主變更密碼按鈕機制
+            document.getElementById('btnSavePassword').addEventListener('click', () => {
+                const newPwd = document.getElementById('newPasswordInput').value.trim();
+                if(newPwd.length < 3) {
+                    alert('新密碼長度過短，請重新輸入！');
+                    return;
+                }
+                localStorage.setItem('admin_pwd_gate', newPwd);
+                document.getElementById('newPasswordInput').value = "";
+                alert('密碼變更成功！請牢記您的新密碼。');
+            });
+
+            // 圖表類型切換
+            document.getElementById('btnChartBar').addEventListener('click', () => {
+                globalChartType = "bar";
+                document.getElementById('btnChartBar').className = "px-2 py-1 rounded bg-white text-gray-800 font-medium shadow-sm transition-all cursor-pointer";
+                document.getElementById('btnChartPie').className = "px-2 py-1 rounded text-gray-500 hover:text-gray-800 transition-all cursor-pointer";
+                refreshSystemUI();
+            });
+            document.getElementById('btnChartPie').addEventListener('click', () => {
+                globalChartType = "pie";
+                document.getElementById('btnChartPie').className = "px-2 py-1 rounded bg-white text-gray-800 font-medium shadow-sm transition-all cursor-pointer";
+                document.getElementById('btnChartBar').className = "px-2 py-1 rounded text-gray-500 hover:text-gray-800 transition-all cursor-pointer";
+                refreshSystemUI();
+            });
+
+            // 清除圖表單元主題篩選按鈕
+            document.getElementById('btnClearChartFilter').addEventListener('click', () => {
+                currentFilterUnitTheme = null;
+                document.getElementById('btnClearChartFilter').classList.add('hidden');
+                refreshSystemUI();
+            });
+
+            // 管理後台年度切換一覽表
+            document.getElementById('adminManageYearSelect').addEventListener('change', () => {
+                renderAdminImageTable();
+            });
+
+            // 方案B步驟一：Excel 拖曳上傳解析機制
+            const xlZone = document.getElementById('excelDropZone');
+            xlZone.addEventListener('click', () => document.getElementById('excelFileInput').click());
+            document.getElementById('excelFileInput').addEventListener('change', (e) => handleExcelImport(e.target.files[0]));
+            
+            xlZone.addEventListener('dragover', (e) => { e.preventDefault(); xlZone.classList.add('border-blue-500', 'bg-slate-700'); });
+            xlZone.addEventListener('dragleave', () => { xlZone.classList.remove('border-blue-500', 'bg-slate-700'); });
+            xlZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                xlZone.classList.remove('border-blue-500', 'bg-slate-700');
+                if(e.dataTransfer.files.length > 0) handleExcelImport(e.dataTransfer.files[0]);
+            });
+
+            // 方案B步驟二：批量圖片拖曳上傳與自動黏合機制
+            const imgZone = document.getElementById('imageDropZone');
+            imgZone.addEventListener('click', () => {
+                activeSingleUploadId = null; // 清除單題覆蓋快取，代表這是批量上傳
+                document.getElementById('imageFileInput').click();
+            });
+            document.getElementById('imageFileInput').addEventListener('change', (e) => handleImageUpload(e.target.files));
+            
+            imgZone.addEventListener('dragover', (e) => { e.preventDefault(); imgZone.classList.add('border-amber-400', 'bg-slate-700'); });
+            imgZone.addEventListener('dragleave', () => { imgZone.classList.remove('border-amber-400', 'bg-slate-700'); });
+            imgZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                imgZone.classList.remove('border-amber-400', 'bg-slate-700');
+                if(e.dataTransfer.files.length > 0) handleImageUpload(e.dataTransfer.files);
+            });
+        }
+
+        // 核心邏輯：刷新全系統所有圖表與雙欄對照介面
+        function refreshSystemUI() {
+            // 1. 取得目前年度過濾後的試題池
+            let pool = examDatabase;
+            if (currentFilterYear !== "all") {
+                pool = examDatabase.filter(q => q.year === currentFilterYear);
+            }
+
+            // 更新上方狀態欄文字說明
+            const scopeIndicator = document.getElementById('currentScopeIndicator');
+            const yearString = currentFilterYear === "all" ? "全部歷屆年度" : `民國 ${currentFilterYear} 年度`;
+            const filterString = currentFilterUnitTheme ? ` ➔ 已篩選單元主題: ${currentFilterUnitTheme}` : "";
+            scopeIndicator.innerText = `當前範圍：${yearString}${filterString}`;
+
+            // 2. 繪製並刷新左側圖表
+            renderAnalyticsChart(pool);
+
+            // 3. 根據圖表所選取的單元主題，進一步縮小右半邊題目清單的範圍
+            let listPool = pool;
+            if (currentFilterUnitTheme) {
+                listPool = pool.filter(q => `${q.unit} - ${q.theme}` === currentFilterUnitTheme);
+                document.getElementById('btnClearChartFilter').classList.remove('hidden');
+            } else {
+                document.getElementById('btnClearChartFilter').classList.add('hidden');
+            }
+
+            document.getElementById('filteredCountTag').innerText = `共 ${listPool.length} 題`;
+
+            // 4. 渲染右側題目代號清單
+            renderQuestionList(listPool);
+        }
+
+        // 繪製 Chart.js 統計圖表
+        function renderAnalyticsChart(dataPool) {
+            const ctx = document.getElementById('mainAnalysisChart').getContext('2d');
+            
+            // 計算各個「單元 - 主題」不重複知識節點的題目分佈總數
+            const distribution = {};
+            dataPool.forEach(q => {
+                const key = `${q.unit} - ${q.theme}`;
+                distribution[key] = (distribution[key] || 0) + 1;
+            });
+
+            const labels = Object.keys(distribution);
+            const datasetData = Object.values(distribution);
+
+            if (chartInstance) chartInstance.destroy();
+
+            const isBar = (globalChartType === "bar");
+            
+            // 動態配置高亮顏色
+            const bgColors = labels.map(lbl => lbl === currentFilterUnitTheme ? '#f43f5e' : '#3b82f6');
+
+            chartInstance = new Chart(ctx, {
+                type: isBar ? 'bar' : 'doughnut',
+                data: {
+                    labels: labels.map(l => l.split(' - ')[1] || l), // 簡化標籤只顯示主題名
+                    datasets: [{
+                        data: datasetData,
+                        backgroundColor: bgColors,
+                        borderRadius: isBar ? 6 : 0,
+                        borderWidth: isBar ? 0 : 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: isBar ? 'y' : 'x',
+                    plugins: {
+                        legend: {
+                            display: !isBar,
+                            position: 'bottom',
+                            labels: { font: { size: 9 }, boxWidth: 12 }
+                        }
+                    },
+                    scales: isBar ? {
+                        x: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } } },
+                        y: { ticks: { font: { size: 10 } } }
+                    } : {},
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const clickedNodeKey = labels[index];
+                            
+                            // 如果重複點擊則取消篩選，否則鎖定該單元主題
+                            currentFilterUnitTheme = (currentFilterUnitTheme === clickedNodeKey) ? null : clickedNodeKey;
+                            refreshSystemUI();
+                        }
+                    }
+                }
+            });
+        }
+
+        // 渲染右側試題代號清單欄
+        function renderQuestionList(listPool) {
+            const listCol = document.getElementById('questionListCol');
+            listCol.innerHTML = "";
+
+            if (listPool.length === 0) {
+                listCol.innerHTML = `<p class="text-xs text-gray-400 text-center py-8">本區間無對應試題</p>`;
+                return;
+            }
+
+            // 按題號自然排序
+            listPool.sort((a, b) => a.num.localeCompare(b.num, 'zh-Hans-TW-u-co-stroke'));
+
+            listPool.forEach(q => {
+                const card = document.createElement('div');
+                card.className = "bg-white border border-gray-200 rounded-lg p-2.5 shadow-2xs hover:border-blue-500 hover:bg-blue-50/20 cursor-pointer transition-all flex justify-between items-center";
+                
+                // 檢查是否有圖片檔存在決定小圖標顏色
+                const hasImg = q.imageBase64 || q.imageName;
+                const dotColor = hasImg ? "bg-emerald-500" : "bg-gray-300";
+
+                card.innerHTML = `
+                    <div class="flex items-center gap-2 overflow-hidden">
+                        <span class="w-2 h-2 rounded-full ${dotColor} shrink-0"></span>
+                        <div class="truncate">
+                            <h4 class="font-bold text-xs text-slate-800">${q.year}年 - ${q.num}</h4>
+                            <p class="text-[9px] text-gray-400 truncate mt-0.5">${q.theme}</p>
+                        </div>
+                    </div>
+                    <span class="text-[9px] text-blue-600 font-medium whitespace-nowrap shrink-0">對照 →</span>
+                `;
+
+                card.addEventListener('click', () => {
+                    // 切換選取樣式高亮
+                    document.querySelectorAll('#questionListCol > div').forEach(d => d.classList.remove('border-blue-600', 'bg-blue-50/40'));
+                    card.classList.add('border-blue-600', 'bg-blue-50/40');
+                    showQuestionDetail(q);
+                });
+
+                listCol.appendChild(card);
+            });
+        }
+
+        // 展示單一題目的大圖與詳細對照資訊
+        function showQuestionDetail(q) {
+            document.getElementById('detailEmptyState').classList.add('hidden');
+            document.getElementById('detailContent').classList.remove('hidden');
+
+            document.getElementById('detailTitle').innerText = `${q.year} 年度國中會考 － ${q.num}`;
+            document.getElementById('detailId').innerText = `系統內部ID: ${q.id}`;
+            
+            document.getElementById('nodeUnitTag').innerText = `單元：${q.unit}`;
+            document.getElementById('nodeThemeTag').innerText = `主題：${q.theme}`;
+
+            const detailImg = document.getElementById('detailImg');
+            const noImgWarning = document.getElementById('noImgWarning');
+
+            if (q.imageBase64) {
+                // 如果具備本地端拖曳上傳的 Base64 快取，優先顯示
+                detailImg.src = q.imageBase64;
+                detailImg.classList.remove('hidden');
+                noImgWarning.classList.add('hidden');
+            } else if (q.imageName) {
+                // 若只有純檔名，代表是預設或部署在 GitHub Pages 相對目錄底下的圖檔
+                detailImg.src = `./images/${q.year}/${q.imageName}`;
+                detailImg.classList.remove('hidden');
+                noImgWarning.classList.add('hidden');
+                
+                // 處理靜態相對路徑找不到圖時的破圖容錯
+                detailImg.onerror = () => {
+                    detailImg.classList.add('hidden');
+                    noImgWarning.classList.remove('hidden');
+                };
+            } else {
+                detailImg.classList.add('hidden');
+                noImgWarning.classList.remove('hidden');
+            }
+        }
+
+        // 管理後台專用：渲染目前選定年度的「每一題對應圖片檔名與點選更換功能」
+        function renderAdminImageTable() {
+            const container = document.getElementById('adminImageTableContainer');
+            container.innerHTML = "";
+            
+            const targetYear = document.getElementById('adminManageYearSelect').value;
+            if(!targetYear) return;
+
+            const yearRows = examDatabase.filter(q => q.year === targetYear);
+            
+            if(yearRows.length === 0) {
+                container.innerHTML = `<p class="text-[10px] text-slate-500 text-center py-2">該年度尚無試題對照表資料</p>`;
+                return;
+            }
+
+            yearRows.sort((a,b) => a.num.localeCompare(b.num, 'zh-Hans-TW-u-co-stroke'));
+
+            yearRows.forEach(q => {
+                const row = document.createElement('div');
+                row.className = "flex justify-between items-center bg-slate-700/60 p-1.5 rounded border border-slate-700 hover:border-amber-500/50 transition-all";
+                
+                const displayFileName = q.imageName || (q.imageBase64 ? "💡 已上傳自訂圖檔(Base64)" : "❌ 尚未配置任何圖檔");
+                const fileColorClass = (q.imageName || q.imageBase64) ? "text-emerald-400" : "text-rose-400";
+
+                row.innerHTML = `
+                    <div class="truncate pr-2">
+                        <span class="font-bold text-slate-200">${q.num}:</span>
+                        <span class="${fileColorClass} text-[10px] ml-1 truncate max-w-[140px] inline-block align-bottom">${displayFileName}</span>
+                    </div>
+                    <button class="bg-amber-600 hover:bg-amber-700 text-white text-[9px] px-1.5 py-0.5 rounded shrink-0 cursor-pointer transition-colors">更換圖片</button>
+                `;
+
+                // 點選該題號的「更換圖片」按鈕機制
+                row.querySelector('button').addEventListener('click', () => {
+                    activeSingleUploadId = q.id; // 將此題 ID 設為單題覆蓋目標
+                    document.getElementById('adminUploadYearSelect').value = q.year; // 自動對齊年度下拉選單
+                    document.getElementById('imageFileInput').click(); // 觸發選擇檔案開關
+                });
+
+                container.appendChild(row);
+            });
+        }
+
+        // 方案B步驟一：處理前端直接導入解析 Excel / 試算表對照表
+        function handleExcelImport(file) {
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                
+                // 預設讀取第一個工作表 Sheet
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // 轉為 JSON 陣列物件 (欄位名稱需與你準備的試算表 header 對應，如 年分, 題號, 單元, 主題)
+                const rows = XLSX.utils.sheet_to_json(worksheet);
+                
+                if(rows.length === 0) {
+                    alert('Excel 內容為空或讀取失敗！');
+                    return;
+                }
+
+                // 開始解析轉換並寫入本地核心持久化資料庫
+                rows.forEach(row => {
+                    const yearVal = String(row['年分'] || row['年份'] || '').trim();
+                    const numVal = String(row['題號'] || '').trim();
+                    const unitVal = String(row['單元'] || '').trim();
+                    const themeVal = String(row['主題'] || '').trim();
+
+                    if(yearVal && numVal) {
+                        const targetId = `${yearVal}_${numVal.replace(/\s+/g, '')}`;
+                        
+                        // 檢查系統中是否已存在此年度此題號，存在則更新，不存在則推入新試題物件
+                        const existIdx = examDatabase.findIndex(q => q.id === targetId);
+                        
+                        const itemData = {
+                            id: targetId,
+                            year: yearVal,
+                            num: numVal,
+                            unit: unitVal || "未指定大單元",
+                            theme: themeVal || "未指定主題名稱",
+                            imageName: existIdx !== -1 ? examDatabase[existIdx].imageName : `${numVal}.png`,
+                            imageBase64: existIdx !== -1 ? examDatabase[existIdx].imageBase64 : ""
+                        };
+
+                        if(existIdx !== -1) {
+                            examDatabase[existIdx] = { ...examDatabase[existIdx], ...itemData };
+                        } else {
+                            examDatabase.push(itemData);
+                        }
+                    }
+                });
+
+                saveDatabase();
+                loadDatabase();
+                renderYearButtons();
+                refreshSystemUI();
+                renderAdminImageTable();
+                alert(`Excel 對照表成功匯入！已同步更新圖表與試題數據。`);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // 方案B步驟二：處理批量上傳或單題更換題目圖檔機制
+        function handleImageUpload(files) {
+            if (!files || files.length === 0) return;
+            
+            const targetYear = document.getElementById('adminUploadYearSelect').value;
+            let matchCount = 0;
+            let processedCount = 0;
+
+            // 轉成陣列以方便進行迴圈處理
+            const fileArray = Array.from(files);
+
+            fileArray.forEach(file => {
+                const rawName = file.name; // 取得檔名如 "選擇 1.png" 或 "選擇1.png"
+                const cleanNameWithoutExt = rawName.substring(0, rawName.lastIndexOf('.')) || rawName;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const base64Result = e.target.result;
+
+                    if (activeSingleUploadId) {
+                        // 【狀況 A：單題更換圖片模式】 直接對準剛剛點選的試題進行地毯式強制覆蓋
+                        const matchIdx = examDatabase.findIndex(q => q.id === activeSingleUploadId);
+                        if (matchIdx !== -1) {
+                            examDatabase[matchIdx].imageName = rawName;
+                            examDatabase[matchIdx].imageBase64 = base64Result;
+                            matchCount++;
+                        }
+                    } else {
+                        // 【狀況 B：批量年度上傳模式】 自動辨識檔名進行智慧黏合與錯誤檔案安全篩選
+                        // 尋找此年度中，題號名稱跟目前圖檔名（去副檔名）一致的試題
+                        const matchIdx = examDatabase.findIndex(q => 
+                            q.year === targetYear && 
+                            (q.num.replace(/\s+/g, '') === cleanNameWithoutExt.replace(/\s+/g, '') || q.num === cleanNameWithoutExt)
+                        );
+
+                        if (matchIdx !== -1) {
+                            // 匹配對接成功！黏合圖片檔名與 Base64 數據
+                            examDatabase[matchIdx].imageName = rawName;
+                            examDatabase[matchIdx].imageBase64 = base64Result;
+                            matchCount++;
+                        }
+                        // 💡 容錯篩選：若對照表（點名簿）中完全找不到此題號，系統會靜默或在此處自動過濾掉，完全不寫入，確保不弄亂資料庫！
+                    }
+
+                    processedCount++;
+                    // 當所有異步讀取圖檔流程通通跑完後，執行一次性介面刷新與存檔
+                    if (processedCount === fileArray.length) {
+                        saveDatabase();
+                        refreshSystemUI();
+                        renderAdminImageTable();
+                        alert(`圖片處理完成！共計讀取 ${fileArray.length} 個檔案，成功智慧對應黏合 ${matchCount} 題試題。其餘不符題號之圖檔已自動過濾篩選。`);
+                        activeSingleUploadId = null; // 清空緩衝狀態
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+    </script>
+</body>
+</html>
