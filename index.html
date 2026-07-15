@@ -4,10 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>國中數學歷屆試題數據分析與管理系統</title>
-    <!-- Tailwind CSS & Chart.js -->
+    <!-- Tailwind CSS & Chart.js & SheetJS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- 引入 SheetJS 用於在前端直接解析使用者上傳的 Excel/試算表 -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
@@ -24,17 +23,16 @@
                 <span class="text-2xl">📐</span>
                 <div>
                     <h1 class="text-lg font-bold tracking-wide">國中數學歷屆試題數據分析系統</h1>
-                    <p class="text-xs text-slate-400 mt-0">支援「單圖對多題」智慧黏合模式</p>
+                    <p class="text-xs text-slate-400 mt-0">專業級數據對照與圖檔黏合管理</p>
                 </div>
             </div>
-            <div class="flex items-center gap-3">
-                <button id="btnToggleAdminSidebar" class="flex items-center gap-1.5 text-xs bg-slate-800 hover:bg-slate-700 px-3 py-2 rounded-lg border border-slate-700 cursor-pointer transition-all">
-                    <span>⚙️</span> <span>管理後台</span>
-                </button>
-            </div>
+            <button id="btnToggleAdminSidebar" class="flex items-center gap-1.5 text-xs bg-slate-800 hover:bg-slate-700 px-3 py-2 rounded-lg border border-slate-700 cursor-pointer transition-all">
+                <span>⚙️</span> <span>管理後台</span>
+            </button>
         </div>
     </header>
 
+    <!-- 管理後台 -->
     <div id="adminSidebar" class="fixed inset-y-0 left-0 w-80 bg-slate-800 text-white shadow-2xl z-50 transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col">
         <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900">
             <h3 class="font-bold text-sm tracking-wider flex items-center gap-2"><span>🔒</span>系統設定與管理</h3>
@@ -42,82 +40,97 @@
         </div>
         
         <div id="adminLoginWallet" class="p-6 flex-1 flex flex-col justify-center space-y-3">
-            <p class="text-xs text-slate-400 text-center">請輸入管理者密碼以開啟管理功能</p>
-            <input type="password" id="adminPwdInput" placeholder="請輸入密碼" class="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
-            <button id="btnAdminLogin" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 rounded font-medium transition-colors">登入後台</button>
+            <p class="text-xs text-slate-400 text-center">請輸入管理者密碼開啟後台</p>
+            <input type="password" id="adminPwdInput" placeholder="預設密碼 75947" class="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+            <button id="btnAdminLogin" class="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded font-medium transition-colors">登入後台</button>
         </div>
 
-        <div id="adminMainControls" class="hidden flex-1 overflow-y-auto p-4 space-y-6 no-scrollbar">
+        <div id="adminMainControls" class="hidden flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
+            <!-- 危險操作區 -->
+            <div class="bg-red-900/30 p-2.5 rounded-lg border border-red-800/50">
+                <button id="btnClearAllData" class="w-full bg-red-700 hover:bg-red-600 text-white text-[11px] py-1.5 rounded transition-colors flex items-center justify-center gap-1">
+                    <span>🗑️</span> 清除系統快取與所有資料 (初始化)
+                </button>
+            </div>
+
             <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-700">
-                <h4 class="text-xs font-bold text-slate-300 mb-2 flex items-center gap-1">🔑 變更管理者密碼</h4>
-                <div class="flex gap-2">
-                    <input type="password" id="newPasswordInput" placeholder="新密碼" class="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs flex-1 text-white focus:outline-none">
-                    <button id="btnSavePassword" class="bg-amber-600 hover:bg-amber-700 text-white text-xs px-3 py-1 rounded transition-colors">修改</button>
-                </div>
-            </div>
-
-            <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-700 space-y-2">
-                <h4 class="text-xs font-bold text-slate-300 flex items-center gap-1">📊 步驟一：匯入試題對照表</h4>
-                <p class="text-[10px] text-slate-400 leading-relaxed">請上傳包含「題號、單元名稱、主題名稱、圖片檔名」欄位的 Excel 試算表。</p>
-                <div id="excelDropZone" class="border-2 border-dashed border-slate-600 rounded-lg p-3 bg-slate-800/50 hover:bg-slate-800 text-center cursor-pointer transition-all">
+                <h4 class="text-xs font-bold text-slate-300 flex items-center gap-1 mb-1">📊 步驟一：匯入 Excel 對照表</h4>
+                <p class="text-[10px] text-slate-400 mb-2">請上傳包含「題號、單元、主題、圖片檔名、題組」等欄位的檔案。</p>
+                <div id="excelDropZone" class="border-2 border-dashed border-slate-600 rounded-lg p-2 bg-slate-800/50 hover:bg-slate-800 text-center cursor-pointer">
                     <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" class="hidden">
-                    <span class="text-xl">📁</span>
-                    <p class="text-[11px] font-bold mt-1 text-slate-200">拖曳或點擊選取試算表</p>
+                    <p class="text-[11px] font-bold text-slate-200">📁 點擊選取試算表</p>
                 </div>
             </div>
 
-            <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-700 space-y-3">
+            <!-- 新增單筆試題 -->
+            <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-700">
+                <h4 class="text-xs font-bold text-slate-300 flex items-center gap-1 mb-2">➕ 新增單筆/新年度試題</h4>
+                <div class="space-y-1.5 text-[10px]">
+                    <div class="flex gap-1.5">
+                        <input type="text" id="addYear" placeholder="年度(如116)" class="w-1/3 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-white">
+                        <input type="text" id="addNum" placeholder="題號(如第1題)" class="w-2/3 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-white">
+                    </div>
+                    <input type="text" id="addUnit" placeholder="大單元 (或題組名稱)" class="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-white">
+                    <input type="text" id="addTheme" placeholder="子主題 (可留白)" class="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-white">
+                    <div class="flex gap-1.5">
+                        <input type="text" id="addImgName" placeholder="對應圖檔名" class="flex-1 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-white">
+                        <button id="btnManualAdd" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 rounded transition-colors">新增</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-700">
                 <h4 class="text-xs font-bold text-slate-300 flex items-center gap-1">🖼️ 步驟二：批量圖片上傳</h4>
-                <div>
-                    <label class="text-[10px] text-slate-400">選擇上傳目標年度</label>
-                    <select id="adminUploadYearSelect" class="w-full bg-slate-700 border border-slate-600 rounded p-1 text-xs text-white mt-1"></select>
-                </div>
-                <div id="imageDropZone" class="border-2 border-dashed border-amber-500/50 rounded-lg p-4 bg-slate-800/50 hover:bg-slate-800 text-center cursor-pointer transition-all">
+                <select id="adminUploadYearSelect" class="w-full bg-slate-800 border border-slate-600 rounded p-1 text-xs text-white my-1.5"></select>
+                <div id="imageDropZone" class="border-2 border-dashed border-amber-500/50 rounded-lg p-2 bg-slate-800/50 hover:bg-slate-800 text-center cursor-pointer">
                     <input type="file" id="imageFileInput" accept="image/*" multiple class="hidden">
-                    <span class="text-xl">📤</span>
-                    <p class="text-[11px] font-bold text-amber-400 mt-1">拖曳或點擊上傳圖片圖檔</p>
-                    <p class="text-[9px] text-slate-400 mt-0.5">💡 系統將自動比對 Excel 的「圖片檔名」欄位進行一對多黏合</p>
+                    <p class="text-[11px] font-bold text-amber-400">📤 點擊上傳圖片圖檔</p>
                 </div>
             </div>
 
-            <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-700 space-y-2">
-                <div class="flex justify-between items-center">
-                    <h4 class="text-xs font-bold text-slate-300">📋 年度圖片對照管理</h4>
-                    <select id="adminManageYearSelect" class="bg-slate-700 border border-slate-600 rounded px-1 py-0.5 text-[10px] text-white"></select>
+            <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-700 flex flex-col flex-1 min-h-[250px]">
+                <div class="flex justify-between items-center mb-2">
+                    <h4 class="text-xs font-bold text-slate-300">📋 對照管理清單</h4>
+                    <select id="adminManageYearSelect" class="bg-slate-800 border border-slate-600 rounded px-1 py-0.5 text-[10px] text-white w-24"></select>
                 </div>
-                <div id="adminImageTableContainer" class="space-y-1.5 max-h-48 overflow-y-auto text-[11px] pr-1 no-scrollbar"></div>
-            </div>
-
-            <div class="pt-2">
-                <button id="btnAdminLogout" class="w-full bg-slate-900 hover:bg-red-900 text-slate-300 hover:text-white text-xs py-2 rounded transition-colors border border-slate-700">安全登出管理後台</button>
+                <!-- 預覽容器 -->
+                <div id="adminImageTableContainer" class="flex-1 overflow-y-auto space-y-1.5 pr-1 no-scrollbar text-[11px]"></div>
             </div>
         </div>
     </div>
 
+    <!-- 主畫面 -->
     <main class="max-w-7xl mx-auto w-full p-4 lg:p-6 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div class="lg:col-span-5 space-y-6 flex flex-col">
+        <div class="lg:col-span-5 space-y-4 flex flex-col">
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
                 <span class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">📊 篩選會考年度數據源</span>
                 <div id="yearButtonsGroup" class="flex flex-wrap gap-2"></div>
             </div>
 
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex flex-col flex-1">
-                <div class="flex justify-between items-start mb-4">
+                <div class="flex justify-between items-start mb-3">
                     <div>
-                        <h2 class="text-sm font-bold text-gray-900 flex items-center gap-1"><span>📈</span> <span id="chartTitle">歷屆考題單元分佈比重</span></h2>
-                        <p class="text-[10px] text-gray-400 mt-0.5">點擊圖表單元可與右側題目大圖即時連動篩選</p>
+                        <h2 class="text-sm font-bold text-gray-900 flex items-center gap-1" id="chartTitle">📈 歷屆考題單元分佈</h2>
+                        <p class="text-[10px] text-gray-400 mt-0.5">點擊圖表可連動右側題目篩選</p>
                     </div>
-                    <div class="flex bg-gray-100 p-0.5 rounded-md text-[10px]">
-                        <button id="btnChartBar" class="px-2 py-1 rounded bg-white text-gray-800 font-medium shadow-sm transition-all">長條圖</button> 
-                        <button id="btnChartPie" class="px-2 py-1 rounded text-gray-500 hover:text-gray-800 transition-all">圓餅圖</button>
+                    <div class="flex bg-gray-100 p-0.5 rounded-md text-[10px] border border-gray-200">
+                        <button id="btnChartBar" class="px-2 py-1 rounded bg-white text-gray-800 font-bold shadow-sm">長條圖</button> 
+                        <button id="btnChartPie" class="px-2 py-1 rounded text-gray-500 hover:text-gray-800">圓餅圖</button>
                     </div>
                 </div>
 
-                <button id="btnClearChartFilter" class="hidden mb-3 text-left text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer transition-colors font-medium">
-                    ← 清除圖表單元篩選 (返回顯示全部題目)
+                <!-- 長條圖排序模式切換 -->
+                <div id="barModeControls" class="flex gap-2 mb-2">
+                    <button id="btnBarHierarchy" class="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded font-medium">階層模式 (依單元排序)</button>
+                    <button id="btnBarFreq" class="text-[10px] bg-gray-50 text-gray-500 border border-gray-200 px-2 py-0.5 rounded">頻率模式 (依題數排序)</button>
+                </div>
+
+                <!-- 圓餅圖/單元回退按鈕 -->
+                <button id="btnClearChartFilter" class="hidden mb-2 text-left text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium transition-colors">
+                    ← 返回上一層顯示
                 </button>
 
-                <div class="relative w-full h-72 lg:h-96 flex items-center justify-center mt-auto">
+                <div class="relative w-full h-80 flex items-center justify-center mt-auto">
                     <canvas id="mainAnalysisChart"></canvas>
                 </div>
             </div>
@@ -126,44 +139,37 @@
         <div class="lg:col-span-7 bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex flex-col min-h-[550px]">
             <div class="border-b border-gray-100 pb-3 mb-4 flex justify-between items-center">
                 <div>
-                    <h2 class="text-sm font-bold text-gray-900 flex items-center gap-1.5"><span>🔍</span> <span>試題清單與雙欄大圖對照</span></h2>
-                    <p class="text-[10px] text-blue-600 font-medium mt-0.5" id="currentScopeIndicator">當前範圍：顯示全部年度試題數據</p>
+                    <h2 class="text-sm font-bold text-gray-900 flex items-center gap-1.5"><span>🔍</span> <span>試題清單與大圖對照</span></h2>
+                    <p class="text-[10px] text-blue-600 font-medium mt-0.5" id="currentScopeIndicator">當前範圍：顯示全部年度</p>
                 </div>
-                <span id="filteredCountTag" class="text-[11px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-bold"></span>
+                <span id="filteredCountTag" class="text-[11px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-bold border border-blue-100"></span>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-12 gap-4 flex-1 items-stretch">
-                <div id="questionListCol" class="md:col-span-4 space-y-2 max-h-[500px] overflow-y-auto pr-1 no-scrollbar"></div>
+                <!-- 試題清單 (根據 Excel 原始排序) -->
+                <div id="questionListCol" class="md:col-span-4 space-y-2 max-h-[550px] overflow-y-auto pr-1 no-scrollbar"></div>
                 
                 <div id="questionDetailCol" class="md:col-span-8 border border-gray-200 rounded-xl bg-slate-50 p-4 flex flex-col justify-between min-h-[380px]">
                     <div id="detailEmptyState" class="m-auto text-center text-gray-400 text-xs space-y-2">
                         <p class="text-3xl">🖼️</p>
-                        <p class="font-medium text-gray-500">請點選左側試題代號進行大圖對照</p>
-                        <p class="text-[10px] text-gray-400">點擊左側統計圖表亦可縮小題目篩選範圍</p>
+                        <p class="font-medium text-gray-500">請點選左側試題進行大圖對照</p>
                     </div>
 
                     <div id="detailContent" class="hidden flex flex-col h-full justify-between">
                         <div class="space-y-3 flex-1 flex flex-col">
-                            <div class="flex justify-between items-center border-b border-gray-200 pb-2 bg-slate-50">
-                                <h4 id="detailTitle" class="font-bold text-xs text-blue-900"></h4>
+                            <div class="flex justify-between items-start border-b border-gray-200 pb-2">
+                                <div>
+                                    <h4 id="detailTitle" class="font-bold text-[13px] text-blue-900"></h4>
+                                    <p id="detailUnitTheme" class="text-[10px] text-gray-500 mt-0.5"></p>
+                                </div>
                                 <span id="detailId" class="text-[9px] font-mono bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded"></span>
                             </div>
                             
-                            <div class="bg-white rounded-lg border border-gray-300 p-3 min-h-[260px] flex-1 flex items-center justify-center text-center shadow-inner overflow-hidden relative">
-                                <img id="detailImg" class="max-h-72 max-w-full object-contain hidden transition-all duration-200">
+                            <div class="bg-white rounded-lg border border-gray-300 p-2 min-h-[300px] flex-1 flex items-center justify-center text-center shadow-inner overflow-hidden relative">
+                                <img id="detailImg" class="max-h-80 max-w-full object-contain hidden transition-all duration-200">
                                 <div id="noImgWarning" class="text-gray-400 text-[11px] space-y-1 hidden">
-                                    <p class="text-xl">⚠️</p>
-                                    <p>此試題尚未上傳對應圖片圖檔</p>
-                                    <p class="text-[9px] text-slate-400">請開啟管理後台拖曳上傳對應此題號的圖片</p>
+                                    <p class="text-xl">⚠️</p><p>尚未配置或上傳圖檔</p>
                                 </div>
-                            </div>
-                        </div>
-
-                        <div class="mt-4 pt-3 border-t border-gray-200 bg-slate-50">
-                            <span class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">🎯 歸屬知識節點（單元主題）</span>
-                            <div class="flex flex-wrap gap-2">
-                                <span id="nodeUnitTag" class="text-[11px] bg-blue-600 text-white px-2.5 py-1 rounded-md font-medium shadow-2xs"></span>
-                                <span id="nodeThemeTag" class="text-[11px] bg-emerald-600 text-white px-2.5 py-1 rounded-md font-medium shadow-2xs"></span>
                             </div>
                         </div>
                     </div>
@@ -173,78 +179,72 @@
     </main>
 
     <script>
-        // 內建預設初使化試題數據陣列 (加入了 expectedImgName 專屬比對欄位)
-        const defaultDatabase = [
-            { id: "115_第1題", year: "115", num: "第 1 題", unit: "第一章 二元一次聯立方程式", theme: "1-2 解二元一次聯立方程式", expectedImgName: "choice_1", imageName: "choice_1.png", imageBase64: "" },
-            { id: "115_第2題", year: "115", num: "第 2 題", unit: "第三章 立體幾何圖形", theme: "3-1 柱體、錐體與空間概念", expectedImgName: "choice_2", imageName: "choice_2.png", imageBase64: "" }
-        ];
-
+        // 【核心資料庫】為避免重複，移除內建假資料，完全依賴使用者匯入或手動新增。
         let examDatabase = [];
-        let currentFilterYear = "115";
-        let currentFilterUnitTheme = null;
+        
+        // 系統狀態控制
+        let currentFilterYear = "all";
+        let currentFilterUnit = null;  // 圓餅圖選中的大單元
+        let currentFilterTheme = null; // 長條圖選中的子主題
+        
+        // 圖表控制
         let chartInstance = null;
-        let globalChartType = "bar";
-        let isAdminAuthenticated = false;
-        let activeSingleUploadId = null;
+        let globalChartType = "bar"; // 'bar' | 'pie'
+        let barSortMode = "hierarchy"; // 'hierarchy' | 'frequency'
+
+        // 預設配色庫 (自動賦予不同單元固定顏色)
+        const colorPalette = ['#3b82f6', '#f59e0b', '#10b981', '#ec4899', '#8b5cf6', '#06b6d4', '#f97316', '#64748b'];
+        const unitColorMap = {};
 
         window.addEventListener('DOMContentLoaded', () => {
-            initLocalStorage();
+            if (!localStorage.getItem('admin_pwd_gate')) localStorage.setItem('admin_pwd_gate', '75947');
             loadDatabase();
             renderYearButtons();
             setupEventListeners();
             refreshSystemUI();
         });
 
-        function initLocalStorage() {
-            if (!localStorage.getItem('admin_pwd_gate')) localStorage.setItem('admin_pwd_gate', '75947');
-        }
-
         function loadDatabase() {
             const stored = localStorage.getItem('github_exam_db');
             if (stored) {
-                try { examDatabase = JSON.parse(stored); } 
-                catch(e) { examDatabase = [...defaultDatabase]; }
-            } else {
-                examDatabase = [...defaultDatabase];
-                saveDatabase();
-            }
+                try { examDatabase = JSON.parse(stored); } catch(e) { examDatabase = []; }
+            } else { examDatabase = []; }
+            assignUnitColors();
         }
 
         function saveDatabase() {
             localStorage.setItem('github_exam_db', JSON.stringify(examDatabase));
+            assignUnitColors();
+        }
+
+        function assignUnitColors() {
+            let colorIndex = 0;
+            examDatabase.forEach(q => {
+                if(q.unit && !unitColorMap[q.unit]) {
+                    unitColorMap[q.unit] = colorPalette[colorIndex % colorPalette.length];
+                    colorIndex++;
+                }
+            });
         }
 
         function renderYearButtons() {
             const container = document.getElementById('yearButtonsGroup');
             container.innerHTML = "";
-            
             const years = [...new Set(examDatabase.map(item => item.year))].sort((a,b) => b - a);
+            
+            const btnClass = "font-medium text-xs py-1.5 px-3 rounded-lg cursor-pointer transition-colors ";
             
             const allBtn = document.createElement('button');
             allBtn.innerText = "顯示全部年度";
-            allBtn.className = currentFilterYear === "all" 
-                ? "bg-blue-600 text-white font-medium text-xs py-2 px-3 rounded-lg shadow-sm cursor-pointer"
-                : "bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium text-xs py-2 px-3 rounded-lg cursor-pointer transition-colors";
-            allBtn.addEventListener('click', () => {
-                currentFilterYear = "all";
-                currentFilterUnitTheme = null;
-                renderYearButtons();
-                refreshSystemUI();
-            });
+            allBtn.className = btnClass + (currentFilterYear === "all" ? "bg-slate-800 text-white shadow" : "bg-gray-100 hover:bg-gray-200 text-gray-700");
+            allBtn.onclick = () => { currentFilterYear = "all"; currentFilterUnit = null; currentFilterTheme = null; refreshSystemUI(); renderYearButtons(); };
             container.appendChild(allBtn);
 
             years.forEach(yr => {
                 const btn = document.createElement('button');
-                btn.innerText = `${yr} 年度會考`;
-                btn.className = currentFilterYear === yr 
-                    ? "bg-blue-600 text-white font-medium text-xs py-2 px-3 rounded-lg shadow-sm cursor-pointer"
-                    : "bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium text-xs py-2 px-3 rounded-lg cursor-pointer transition-colors";
-                btn.addEventListener('click', () => {
-                    currentFilterYear = yr;
-                    currentFilterUnitTheme = null;
-                    renderYearButtons();
-                    refreshSystemUI();
-                });
+                btn.innerText = `${yr} 年度`;
+                btn.className = btnClass + (currentFilterYear === yr ? "bg-slate-800 text-white shadow" : "bg-gray-100 hover:bg-gray-200 text-gray-700");
+                btn.onclick = () => { currentFilterYear = yr; currentFilterUnit = null; currentFilterTheme = null; refreshSystemUI(); renderYearButtons(); };
                 container.appendChild(btn);
             });
 
@@ -254,130 +254,261 @@
         function updateAdminYearSelects(years) {
             const upSelect = document.getElementById('adminUploadYearSelect');
             const mgSelect = document.getElementById('adminManageYearSelect');
-            const currentUpVal = upSelect.value;
-            const currentMgVal = mgSelect.value;
-
             upSelect.innerHTML = ""; mgSelect.innerHTML = "";
-
+            if(years.length === 0) {
+                upSelect.innerHTML = "<option value=''>無資料</option>";
+                mgSelect.innerHTML = "<option value=''>無資料</option>";
+                return;
+            }
             years.forEach(yr => {
-                upSelect.appendChild(new Option(`${yr} 年度`, yr));
-                mgSelect.appendChild(new Option(`${yr} 年度`, yr));
+                upSelect.appendChild(new Option(`${yr}年度`, yr));
+                mgSelect.appendChild(new Option(`${yr}年度`, yr));
             });
-
-            if(currentUpVal) upSelect.value = currentUpVal;
-            if(currentMgVal) mgSelect.value = currentMgVal;
+            renderAdminImageTable();
         }
 
         function setupEventListeners() {
-            document.getElementById('btnToggleAdminSidebar').addEventListener('click', () => {
-                document.getElementById('adminSidebar').classList.remove('-translate-x-full');
-            });
-            document.getElementById('btnCloseSidebar').addEventListener('click', () => {
-                document.getElementById('adminSidebar').classList.add('-translate-x-full');
-            });
+            // 後台開關
+            document.getElementById('btnToggleAdminSidebar').onclick = () => document.getElementById('adminSidebar').classList.remove('-translate-x-full');
+            document.getElementById('btnCloseSidebar').onclick = () => document.getElementById('adminSidebar').classList.add('-translate-x-full');
 
-            document.getElementById('btnAdminLogin').addEventListener('click', () => {
+            // 後台登入
+            document.getElementById('btnAdminLogin').onclick = () => {
                 if (document.getElementById('adminPwdInput').value === localStorage.getItem('admin_pwd_gate')) {
-                    isAdminAuthenticated = true;
                     document.getElementById('adminLoginWallet').classList.add('hidden');
                     document.getElementById('adminMainControls').classList.remove('hidden');
                     renderAdminImageTable();
-                } else alert('密碼錯誤！請重新輸入。');
-            });
+                } else alert('密碼錯誤！');
+            };
 
-            document.getElementById('btnAdminLogout').addEventListener('click', () => {
-                isAdminAuthenticated = false;
-                document.getElementById('adminPwdInput').value = "";
-                document.getElementById('adminLoginWallet').classList.remove('hidden');
-                document.getElementById('adminMainControls').classList.add('hidden');
-            });
+            // 清除資料
+            document.getElementById('btnClearAllData').onclick = () => {
+                if(confirm("⚠️ 確定要清除系統內的所有資料(包含圖片與題庫)嗎？\n清除後需重新匯入 Excel！")) {
+                    localStorage.removeItem('github_exam_db');
+                    examDatabase = [];
+                    currentFilterYear = "all"; currentFilterUnit = null; currentFilterTheme = null;
+                    refreshSystemUI(); renderYearButtons(); renderAdminImageTable();
+                    alert("資料已清空！請重新匯入對照表。");
+                }
+            };
 
-            document.getElementById('btnSavePassword').addEventListener('click', () => {
-                const newPwd = document.getElementById('newPasswordInput').value.trim();
-                if(newPwd.length < 3) return alert('新密碼長度過短！');
-                localStorage.setItem('admin_pwd_gate', newPwd);
-                document.getElementById('newPasswordInput').value = "";
-                alert('密碼變更成功！');
-            });
+            // 手動新增題目
+            document.getElementById('btnManualAdd').onclick = () => {
+                const yr = document.getElementById('addYear').value.trim();
+                const num = document.getElementById('addNum').value.trim();
+                if(!yr || !num) return alert("年度與題號為必填！");
+                
+                const newId = `${yr}_${num.replace(/\s+/g, '')}`;
+                const maxIndex = examDatabase.length > 0 ? Math.max(...examDatabase.map(d => d.excelRowIndex || 0)) : 0;
+                
+                examDatabase.push({
+                    id: newId, year: yr, num: num,
+                    unit: document.getElementById('addUnit').value.trim() || "手動新增題組",
+                    theme: document.getElementById('addTheme').value.trim() || "",
+                    expectedImgName: document.getElementById('addImgName').value.trim(),
+                    imageName: document.getElementById('addImgName').value.trim() ? `${document.getElementById('addImgName').value.trim()}.png` : "",
+                    imageBase64: "",
+                    excelRowIndex: maxIndex + 1
+                });
+                
+                document.getElementById('addNum').value = ""; document.getElementById('addImgName').value = "";
+                saveDatabase(); renderYearButtons(); refreshSystemUI(); renderAdminImageTable();
+                alert(`已新增 ${yr}年度 - ${num}！`);
+            };
 
-            document.getElementById('btnChartBar').addEventListener('click', () => {
-                globalChartType = "bar";
-                document.getElementById('btnChartBar').className = "px-2 py-1 rounded bg-white text-gray-800 font-medium shadow-sm transition-all cursor-pointer";
-                document.getElementById('btnChartPie').className = "px-2 py-1 rounded text-gray-500 hover:text-gray-800 transition-all cursor-pointer";
+            // 圖表模式切換按鈕
+            document.getElementById('btnChartBar').onclick = () => { 
+                globalChartType = "bar"; 
+                document.getElementById('btnChartBar').className = "px-2 py-1 rounded bg-white text-gray-800 font-bold shadow-sm";
+                document.getElementById('btnChartPie').className = "px-2 py-1 rounded text-gray-500 hover:text-gray-800";
+                document.getElementById('barModeControls').classList.remove('hidden');
+                refreshSystemUI(); 
+            };
+            document.getElementById('btnChartPie').onclick = () => { 
+                globalChartType = "pie"; 
+                document.getElementById('btnChartPie').className = "px-2 py-1 rounded bg-white text-gray-800 font-bold shadow-sm";
+                document.getElementById('btnChartBar').className = "px-2 py-1 rounded text-gray-500 hover:text-gray-800";
+                document.getElementById('barModeControls').classList.add('hidden');
+                refreshSystemUI(); 
+            };
+
+            document.getElementById('btnBarHierarchy').onclick = () => {
+                barSortMode = "hierarchy";
+                document.getElementById('btnBarHierarchy').className = "text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded font-medium";
+                document.getElementById('btnBarFreq').className = "text-[10px] bg-gray-50 text-gray-500 border border-gray-200 px-2 py-0.5 rounded";
                 refreshSystemUI();
-            });
-            document.getElementById('btnChartPie').addEventListener('click', () => {
-                globalChartType = "pie";
-                document.getElementById('btnChartPie').className = "px-2 py-1 rounded bg-white text-gray-800 font-medium shadow-sm transition-all cursor-pointer";
-                document.getElementById('btnChartBar').className = "px-2 py-1 rounded text-gray-500 hover:text-gray-800 transition-all cursor-pointer";
+            };
+            document.getElementById('btnBarFreq').onclick = () => {
+                barSortMode = "frequency";
+                document.getElementById('btnBarFreq').className = "text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded font-medium";
+                document.getElementById('btnBarHierarchy').className = "text-[10px] bg-gray-50 text-gray-500 border border-gray-200 px-2 py-0.5 rounded";
                 refreshSystemUI();
-            });
+            };
 
-            document.getElementById('btnClearChartFilter').addEventListener('click', () => {
-                currentFilterUnitTheme = null;
-                document.getElementById('btnClearChartFilter').classList.add('hidden');
+            // 清除過濾器
+            document.getElementById('btnClearChartFilter').onclick = () => {
+                if (globalChartType === 'pie' && currentFilterUnit) currentFilterUnit = null; // 圓餅圖返回單元全覽
+                currentFilterTheme = null; // 清除主題過濾
                 refreshSystemUI();
-            });
+            };
 
-            document.getElementById('adminManageYearSelect').addEventListener('change', renderAdminImageTable);
+            document.getElementById('adminManageYearSelect').onchange = renderAdminImageTable;
 
+            // Excel 檔案上傳
             const xlZone = document.getElementById('excelDropZone');
-            xlZone.addEventListener('click', () => document.getElementById('excelFileInput').click());
-            document.getElementById('excelFileInput').addEventListener('change', (e) => handleExcelImport(e.target.files[0]));
-            xlZone.addEventListener('dragover', (e) => { e.preventDefault(); xlZone.classList.add('border-blue-500', 'bg-slate-700'); });
-            xlZone.addEventListener('dragleave', () => xlZone.classList.remove('border-blue-500', 'bg-slate-700'));
-            xlZone.addEventListener('drop', (e) => { e.preventDefault(); xlZone.classList.remove('border-blue-500', 'bg-slate-700'); if(e.dataTransfer.files.length > 0) handleExcelImport(e.dataTransfer.files[0]); });
+            xlZone.onclick = () => document.getElementById('excelFileInput').click();
+            document.getElementById('excelFileInput').onchange = (e) => handleExcelImport(e.target.files[0]);
 
+            // 圖片上傳
             const imgZone = document.getElementById('imageDropZone');
-            imgZone.addEventListener('click', () => { activeSingleUploadId = null; document.getElementById('imageFileInput').click(); });
-            document.getElementById('imageFileInput').addEventListener('change', (e) => handleImageUpload(e.target.files));
-            imgZone.addEventListener('dragover', (e) => { e.preventDefault(); imgZone.classList.add('border-amber-400', 'bg-slate-700'); });
-            imgZone.addEventListener('dragleave', () => imgZone.classList.remove('border-amber-400', 'bg-slate-700'));
-            imgZone.addEventListener('drop', (e) => { e.preventDefault(); imgZone.classList.remove('border-amber-400', 'bg-slate-700'); if(e.dataTransfer.files.length > 0) handleImageUpload(e.dataTransfer.files); });
+            imgZone.onclick = () => document.getElementById('imageFileInput').click();
+            document.getElementById('imageFileInput').onchange = (e) => handleImageUpload(e.target.files);
         }
 
         function refreshSystemUI() {
             let pool = currentFilterYear !== "all" ? examDatabase.filter(q => q.year === currentFilterYear) : examDatabase;
-            document.getElementById('currentScopeIndicator').innerText = `當前範圍：${currentFilterYear === "all" ? "全部歷屆年度" : `民國 ${currentFilterYear} 年度`}${currentFilterUnitTheme ? ` ➔ ${currentFilterUnitTheme}` : ""}`;
+            
+            // 指示器文字更新
+            let scopeTxt = currentFilterYear === "all" ? "全部歷屆年度" : `${currentFilterYear}年度`;
+            if(currentFilterUnit) scopeTxt += ` > ${currentFilterUnit}`;
+            if(currentFilterTheme) scopeTxt += ` > ${currentFilterTheme}`;
+            document.getElementById('currentScopeIndicator').innerText = `範圍：${scopeTxt}`;
+
+            // 控制返回按鈕顯示
+            const btnClear = document.getElementById('btnClearChartFilter');
+            if(currentFilterTheme || (globalChartType === 'pie' && currentFilterUnit)) btnClear.classList.remove('hidden');
+            else btnClear.classList.add('hidden');
 
             renderAnalyticsChart(pool);
 
+            // 清單過濾 (嚴格遵循 Excel 原始排序 excelRowIndex)
             let listPool = pool;
-            if (currentFilterUnitTheme) {
-                listPool = pool.filter(q => `${q.unit} - ${q.theme}` === currentFilterUnitTheme);
-                document.getElementById('btnClearChartFilter').classList.remove('hidden');
-            } else {
-                document.getElementById('btnClearChartFilter').classList.add('hidden');
+            if (currentFilterTheme) {
+                // 如果有點擊長條圖主題，則過濾出該主題 (相容合併字串)
+                listPool = pool.filter(q => {
+                    const tName = q.theme ? `${q.unit} - ${q.theme}` : q.unit;
+                    return tName === currentFilterTheme;
+                });
+            } else if (currentFilterUnit) {
+                // 如果有點擊圓餅圖大單元，則過濾該大單元
+                listPool = pool.filter(q => q.unit === currentFilterUnit);
             }
-
+            
             document.getElementById('filteredCountTag').innerText = `共 ${listPool.length} 題`;
             renderQuestionList(listPool);
         }
 
+        // 核心圖表渲染邏輯
         function renderAnalyticsChart(dataPool) {
             const ctx = document.getElementById('mainAnalysisChart').getContext('2d');
-            const distribution = {};
-            dataPool.forEach(q => { const key = `${q.unit} - ${q.theme}`; distribution[key] = (distribution[key] || 0) + 1; });
-            const labels = Object.keys(distribution);
-            const datasetData = Object.values(distribution);
-
             if (chartInstance) chartInstance.destroy();
-            const isBar = globalChartType === "bar";
-            const bgColors = labels.map(lbl => lbl === currentFilterUnitTheme ? '#f43f5e' : '#3b82f6');
 
-            chartInstance = new Chart(ctx, {
-                type: isBar ? 'bar' : 'doughnut',
-                data: {
-                    labels: labels.map(l => l.split(' - ')[1] || l),
-                    datasets: [{ data: datasetData, backgroundColor: bgColors, borderRadius: isBar ? 6 : 0, borderWidth: isBar ? 0 : 1 }]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false, indexAxis: isBar ? 'y' : 'x',
-                    plugins: { legend: { display: !isBar, position: 'bottom', labels: { font: { size: 9 }, boxWidth: 12 } } },
-                    scales: isBar ? { x: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } } }, y: { ticks: { font: { size: 10 } } } } : {},
-                    onClick: (e, els) => { if (els.length > 0) { const clicked = labels[els[0].index]; currentFilterUnitTheme = currentFilterUnitTheme === clicked ? null : clicked; refreshSystemUI(); } }
+            if(dataPool.length === 0) return;
+
+            if (globalChartType === "pie") {
+                // 【圓餅圖邏輯】
+                document.getElementById('chartTitle').innerText = currentFilterUnit ? `📈 ${currentFilterUnit} ➔ 主題分佈` : "📈 歷屆考題大單元分佈";
+                const distribution = {};
+                
+                if (!currentFilterUnit) {
+                    // 第一層：顯示所有大單元
+                    dataPool.forEach(q => { distribution[q.unit] = (distribution[q.unit] || 0) + 1; });
+                    const labels = Object.keys(distribution);
+                    const bgColors = labels.map(lbl => unitColorMap[lbl] || '#94a3b8');
+                    
+                    chartInstance = new Chart(ctx, {
+                        type: 'pie',
+                        data: { labels: labels, datasets: [{ data: Object.values(distribution), backgroundColor: bgColors }] },
+                        options: {
+                            responsive: true, maintainAspectRatio: false,
+                            plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: {size: 10} } } },
+                            onClick: (e, els) => {
+                                if (els.length > 0) {
+                                    currentFilterUnit = labels[els[0].index];
+                                    currentFilterTheme = null; // 重置主題
+                                    refreshSystemUI();
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    // 第二層：顯示選定大單元下的主題 (Drill-down)
+                    const unitPool = dataPool.filter(q => q.unit === currentFilterUnit);
+                    unitPool.forEach(q => { const key = q.theme || '無子主題/題組'; distribution[key] = (distribution[key] || 0) + 1; });
+                    const labels = Object.keys(distribution);
+                    // 產生同色系的漸層色
+                    const baseColor = unitColorMap[currentFilterUnit] || '#3b82f6';
+                    const bgColors = labels.map((_, i) => `${baseColor}${Math.max(99 - i*15, 20)}`); // Hex 透明度
+
+                    chartInstance = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: { labels: labels, datasets: [{ data: Object.values(distribution), backgroundColor: bgColors }] },
+                        options: {
+                            responsive: true, maintainAspectRatio: false,
+                            plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: {size: 10} } } },
+                            onClick: (e, els) => {
+                                if (els.length > 0) {
+                                    const clickedTheme = labels[els[0].index];
+                                    currentFilterTheme = clickedTheme === '無子主題/題組' ? currentFilterUnit : `${currentFilterUnit} - ${clickedTheme}`;
+                                    refreshSystemUI();
+                                }
+                            }
+                        }
+                    });
                 }
-            });
+            } else {
+                // 【長條圖邏輯】
+                document.getElementById('chartTitle').innerText = "📈 單元主題考題數量排行";
+                
+                // 先彙整所有 主題 (如沒有主題則歸大單元)
+                const distMap = {};
+                dataPool.forEach(q => {
+                    const key = q.theme ? `${q.unit} - ${q.theme}` : q.unit;
+                    if(!distMap[key]) distMap[key] = { count: 0, unit: q.unit, theme: q.theme || '無主題' };
+                    distMap[key].count++;
+                });
+
+                let sortedKeys = Object.keys(distMap);
+                
+                if (barSortMode === "hierarchy") {
+                    // 階層排序：依單元名稱字串排序，再依主題排序
+                    sortedKeys.sort((a, b) => distMap[a].unit.localeCompare(distMap[b].unit) || distMap[a].theme.localeCompare(distMap[b].theme));
+                } else {
+                    // 頻率排序：數量大到小，數量相同才比名稱
+                    sortedKeys.sort((a, b) => distMap[b].count - distMap[a].count || distMap[a].unit.localeCompare(distMap[b].unit));
+                }
+
+                const labels = sortedKeys;
+                const dataVals = labels.map(k => distMap[k].count);
+                // 階層模式下，同單元顯示同顏色；被點擊過濾時高亮
+                const bgColors = labels.map(k => {
+                    if (currentFilterTheme === k) return '#ef4444'; // 高亮紅
+                    return unitColorMap[distMap[k].unit] || '#3b82f6';
+                });
+
+                chartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels.map(l => l.includes(' - ') ? l.split(' - ')[1] : l), // 只顯示後半段名稱省空間
+                        datasets: [{ data: dataVals, backgroundColor: bgColors, borderRadius: 4 }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+                        plugins: { 
+                            legend: { display: false },
+                            tooltip: { callbacks: { title: (ctx) => labels[ctx[0].dataIndex] } } // Tooltip顯示完整名稱
+                        },
+                        scales: { x: { beginAtZero: true, ticks: { stepSize: 1, font: {size:10} } }, y: { ticks: {font: {size:10}} } },
+                        onClick: (e, els) => {
+                            if (els.length > 0) {
+                                const clickedKey = labels[els[0].index];
+                                currentFilterTheme = currentFilterTheme === clickedKey ? null : clickedKey;
+                                refreshSystemUI();
+                            }
+                        }
+                    }
+                });
+            }
         }
 
         function renderQuestionList(listPool) {
@@ -385,22 +516,22 @@
             listCol.innerHTML = "";
             if (listPool.length === 0) return listCol.innerHTML = `<p class="text-xs text-gray-400 text-center py-8">本區間無對應試題</p>`;
 
-            listPool.sort((a, b) => {
-                const numA = parseInt(a.num.replace(/\D/g, '')) || 0;
-                const numB = parseInt(b.num.replace(/\D/g, '')) || 0;
-                return numA - numB || a.num.localeCompare(b.num, 'zh-Hans-TW-u-co-stroke');
-            });
+            // ⚠️ 嚴格遵循 Excel 列數排序
+            listPool.sort((a, b) => (a.excelRowIndex || 0) - (b.excelRowIndex || 0));
 
             listPool.forEach(q => {
                 const card = document.createElement('div');
                 card.className = "bg-white border border-gray-200 rounded-lg p-2.5 shadow-2xs hover:border-blue-500 hover:bg-blue-50/20 cursor-pointer transition-all flex justify-between items-center";
-                const dotColor = (q.imageBase64 || q.imageName) ? "bg-emerald-500" : "bg-gray-300";
-                card.innerHTML = `<div class="flex items-center gap-2 overflow-hidden"><span class="w-2 h-2 rounded-full ${dotColor} shrink-0"></span><div class="truncate"><h4 class="font-bold text-xs text-slate-800">${q.year}年 - ${q.num}</h4><p class="text-[9px] text-gray-400 truncate mt-0.5">${q.theme}</p></div></div><span class="text-[9px] text-blue-600 font-medium whitespace-nowrap shrink-0">對照 →</span>`;
-                card.addEventListener('click', () => {
+                const dotColor = (q.imageBase64) ? "bg-emerald-500" : (q.expectedImgName ? "bg-amber-400" : "bg-gray-300");
+                
+                const displayTheme = q.theme || '題組資料';
+                
+                card.innerHTML = `<div class="flex items-center gap-2 overflow-hidden w-full"><span class="w-2 h-2 rounded-full ${dotColor} shrink-0"></span><div class="truncate w-full"><h4 class="font-bold text-xs text-slate-800">${q.year}年 - ${q.num}</h4><p class="text-[9px] text-gray-400 truncate mt-0.5">${q.unit} > ${displayTheme}</p></div></div>`;
+                card.onclick = () => {
                     document.querySelectorAll('#questionListCol > div').forEach(d => d.classList.remove('border-blue-600', 'bg-blue-50/40'));
                     card.classList.add('border-blue-600', 'bg-blue-50/40');
                     showQuestionDetail(q);
-                });
+                };
                 listCol.appendChild(card);
             });
         }
@@ -408,20 +539,21 @@
         function showQuestionDetail(q) {
             document.getElementById('detailEmptyState').classList.add('hidden');
             document.getElementById('detailContent').classList.remove('hidden');
-            document.getElementById('detailTitle').innerText = `${q.year} 年度國中會考 － ${q.num}`;
-            document.getElementById('detailId').innerText = `系統內部ID: ${q.id}`;
-            document.getElementById('nodeUnitTag').innerText = `單元：${q.unit}`;
-            document.getElementById('nodeThemeTag').innerText = `主題：${q.theme}`;
+            document.getElementById('detailTitle').innerText = `${q.year} 年度 － ${q.num}`;
+            document.getElementById('detailUnitTheme').innerText = `歸屬：${q.unit} ${q.theme ? '> '+q.theme : ''}`;
+            document.getElementById('detailId').innerText = `ID: ${q.id}`;
 
             const detailImg = document.getElementById('detailImg');
             const noImgWarning = document.getElementById('noImgWarning');
 
             if (q.imageBase64) {
-                detailImg.src = q.imageBase64; detailImg.classList.remove('hidden'); noImgWarning.classList.add('hidden');
-            } else if (q.imageName) {
-                detailImg.src = `./images/${q.year}/${q.imageName}`; detailImg.classList.remove('hidden'); noImgWarning.classList.add('hidden');
-                detailImg.onerror = () => { detailImg.classList.add('hidden'); noImgWarning.classList.remove('hidden'); };
-            } else { detailImg.classList.add('hidden'); noImgWarning.classList.remove('hidden'); }
+                detailImg.src = q.imageBase64; 
+                detailImg.classList.remove('hidden'); 
+                noImgWarning.classList.add('hidden');
+            } else { 
+                detailImg.classList.add('hidden'); 
+                noImgWarning.classList.remove('hidden'); 
+            }
         }
 
         function renderAdminImageTable() {
@@ -431,30 +563,45 @@
             if(!targetYear) return;
 
             const yearRows = examDatabase.filter(q => q.year === targetYear);
-            if(yearRows.length === 0) return container.innerHTML = `<p class="text-[10px] text-slate-500 text-center py-2">該年度尚無試題對照表資料</p>`;
+            if(yearRows.length === 0) return container.innerHTML = `<p class="text-[10px] text-slate-500 text-center py-2">該年度無資料</p>`;
 
-            yearRows.sort((a,b) => {
-                const numA = parseInt(a.num.replace(/\D/g, '')) || 0;
-                const numB = parseInt(b.num.replace(/\D/g, '')) || 0;
-                return numA - numB || a.num.localeCompare(b.num, 'zh-Hans-TW-u-co-stroke');
-            });
+            // ⚠️ 後台清單同樣遵循 Excel 列數排序
+            yearRows.sort((a, b) => (a.excelRowIndex || 0) - (b.excelRowIndex || 0));
 
             yearRows.forEach(q => {
-                const row = document.createElement('div');
-                row.className = "flex justify-between items-center bg-slate-700/60 p-1.5 rounded border border-slate-700 hover:border-amber-500/50 transition-all";
-                const displayFileName = q.imageBase64 ? "💡 已上傳自訂圖檔" : (q.imageName ? `✔️ 目標: ${q.imageName}` : "❌ 尚未配置圖檔名");
-                const fileColorClass = (q.imageName || q.imageBase64) ? "text-emerald-400" : "text-rose-400";
-                row.innerHTML = `<div class="truncate pr-2"><span class="font-bold text-slate-200">${q.num}:</span><span class="${fileColorClass} text-[10px] ml-1 truncate max-w-[140px] inline-block align-bottom">${displayFileName}</span></div><button class="bg-amber-600 hover:bg-amber-700 text-white text-[9px] px-1.5 py-0.5 rounded shrink-0 cursor-pointer transition-colors">更換圖片</button>`;
-                row.querySelector('button').addEventListener('click', () => {
-                    activeSingleUploadId = q.id;
-                    document.getElementById('adminUploadYearSelect').value = q.year;
-                    document.getElementById('imageFileInput').click();
-                });
-                container.appendChild(row);
+                const wrapper = document.createElement('div');
+                wrapper.className = "flex flex-col bg-slate-800 p-1.5 rounded border border-slate-700";
+                
+                const topRow = document.createElement('div');
+                topRow.className = "flex justify-between items-center";
+                
+                const fileColorClass = q.imageBase64 ? "text-emerald-400" : (q.expectedImgName ? "text-amber-400" : "text-rose-400");
+                const statusTxt = q.imageBase64 ? "✔️ 圖片已就緒" : (q.expectedImgName ? `等候上傳: ${q.expectedImgName}` : "無綁定檔名");
+
+                topRow.innerHTML = `
+                    <div class="truncate pr-2 cursor-pointer flex-1" onclick="this.parentElement.nextElementSibling.classList.toggle('hidden')">
+                        <span class="font-bold text-slate-200">${q.num}:</span>
+                        <span class="${fileColorClass} text-[9px] ml-1"> ${statusTxt} </span>
+                        ${q.imageBase64 ? '<span class="ml-1 text-slate-400 text-[10px] bg-slate-700 px-1 rounded hover:text-white">👁️ 預覽</span>' : ''}
+                    </div>
+                `;
+                
+                // 圖片預覽區塊 (預設隱藏)
+                const previewRow = document.createElement('div');
+                previewRow.className = "hidden mt-2 p-1 bg-slate-900 rounded border border-slate-700 text-center";
+                if(q.imageBase64) {
+                    previewRow.innerHTML = `<img src="${q.imageBase64}" class="max-h-32 mx-auto object-contain">`;
+                } else {
+                    previewRow.innerHTML = `<span class="text-[10px] text-slate-500">尚無圖片內容</span>`;
+                }
+
+                wrapper.appendChild(topRow);
+                wrapper.appendChild(previewRow);
+                container.appendChild(wrapper);
             });
         }
 
-        // 升級版 Excel 匯入解析機制
+        // Excel 匯入
         function handleExcelImport(file) {
             if (!file) return;
             const reader = new FileReader();
@@ -464,16 +611,26 @@
                 const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
                 if(rows.length === 0) return alert('Excel 內容為空或讀取失敗！');
 
-                // 自動從檔名或 Sheet 名稱辨識年份（若無則預設115）
                 const yearMatch = sheetName.match(/\d{2,3}/);
                 const defaultYear = yearMatch ? yearMatch[0] : '115';
 
-                rows.forEach(row => {
-                    // 自動兼容各種表頭命名習慣
+                // 計算當前資料庫最大 index，接續排列
+                let maxIndex = examDatabase.length > 0 ? Math.max(...examDatabase.map(d => d.excelRowIndex || 0)) : 0;
+
+                let importedCount = 0;
+                rows.forEach((row, idx) => {
                     const yearVal = String(row['年分'] || row['年份'] || defaultYear).trim();
                     const numVal = String(row['題號'] || '').trim();
-                    const unitVal = String(row['單元名稱（章）'] || row['單元'] || '').trim();
-                    const themeVal = String(row['主題名稱（幾之幾）'] || row['主題'] || '').trim();
+                    
+                    // 題組相容處理：先找單元名稱，若無則找題組欄位
+                    let unitVal = String(row['單元名稱（章）'] || row['單元'] || '').trim();
+                    let themeVal = String(row['主題名稱（幾之幾）'] || row['主題'] || '').trim();
+                    
+                    if (!unitVal) {
+                        const groupVal = String(row['題組'] || '').trim();
+                        unitVal = groupVal ? `題組：${groupVal}` : "綜合題組";
+                    }
+
                     const expectedImg = String(row['圖片檔名'] || '').trim();
 
                     if(yearVal && numVal) {
@@ -482,31 +639,29 @@
                         
                         const itemData = {
                             id: targetId, year: yearVal, num: numVal,
-                            unit: unitVal || "未指定大單元",
-                            theme: themeVal || "未指定主題名稱",
-                            expectedImgName: expectedImg, // 關鍵：記錄 Excel 填寫的目標圖檔名
-                            imageName: existIdx !== -1 ? examDatabase[existIdx].imageName : (expectedImg ? `${expectedImg}.png` : ""),
-                            imageBase64: existIdx !== -1 ? examDatabase[existIdx].imageBase64 : ""
+                            unit: unitVal, theme: themeVal, expectedImgName: expectedImg,
+                            imageName: expectedImg ? `${expectedImg}.png` : "",
+                            imageBase64: existIdx !== -1 ? examDatabase[existIdx].imageBase64 : "",
+                            excelRowIndex: existIdx !== -1 ? examDatabase[existIdx].excelRowIndex : (maxIndex + idx + 1) // 保留原始順序
                         };
 
                         if(existIdx !== -1) examDatabase[existIdx] = { ...examDatabase[existIdx], ...itemData };
                         else examDatabase.push(itemData);
+                        importedCount++;
                     }
                 });
 
-                saveDatabase(); loadDatabase(); renderYearButtons(); refreshSystemUI(); renderAdminImageTable();
-                alert(`Excel 對照表成功匯入！已自動同步圖表與「圖片檔名」匹配數據。`);
+                saveDatabase(); renderYearButtons(); refreshSystemUI(); renderAdminImageTable();
+                alert(`Excel 匯入完成！成功處理 ${importedCount} 筆資料。`);
             };
             reader.readAsArrayBuffer(file);
         }
 
-        // 升級版圖片批量智慧黏合機制
+        // 圖片上傳
         function handleImageUpload(files) {
             if (!files || files.length === 0) return;
             const targetYear = document.getElementById('adminUploadYearSelect').value;
-            let matchFileCount = 0;
-            let affectedQuestionsCount = 0;
-            let processedCount = 0;
+            let matchFileCount = 0; let affectedCount = 0; let processedCount = 0;
             const fileArray = Array.from(files);
 
             fileArray.forEach(file => {
@@ -515,43 +670,24 @@
                 const reader = new FileReader();
                 
                 reader.onload = function(e) {
-                    const base64Result = e.target.result;
                     let fileMatched = false;
-
-                    if (activeSingleUploadId) {
-                        // 單題強制覆蓋
-                        const matchIdx = examDatabase.findIndex(q => q.id === activeSingleUploadId);
-                        if (matchIdx !== -1) {
-                            examDatabase[matchIdx].imageName = rawName;
-                            examDatabase[matchIdx].imageBase64 = base64Result;
-                            fileMatched = true; affectedQuestionsCount++;
-                        }
-                    } else {
-                        // 批量黏合：支援一圖對多題
-                        examDatabase.forEach((q, idx) => {
-                            if (q.year === targetYear) {
-                                // 優先比對：Excel 指定的「圖片檔名」欄位 (如 choice_1)
-                                const isImgNameMatch = q.expectedImgName && (q.expectedImgName === rawName || q.expectedImgName === cleanNameWithoutExt);
-                                // 備用比對：如果 Excel 沒寫，退回比較「題號」
-                                const isNumMatch = (q.num.replace(/\s+/g, '') === cleanNameWithoutExt.replace(/\s+/g, '') || q.num === cleanNameWithoutExt);
-                                
-                                if (isImgNameMatch || isNumMatch) {
-                                    examDatabase[idx].imageName = rawName;
-                                    examDatabase[idx].imageBase64 = base64Result;
-                                    fileMatched = true;
-                                    affectedQuestionsCount++;
-                                }
+                    examDatabase.forEach((q, idx) => {
+                        if (q.year === targetYear) {
+                            const isImgNameMatch = q.expectedImgName && (q.expectedImgName === rawName || q.expectedImgName === cleanNameWithoutExt);
+                            if (isImgNameMatch) {
+                                examDatabase[idx].imageName = rawName;
+                                examDatabase[idx].imageBase64 = e.target.result;
+                                fileMatched = true; affectedCount++;
                             }
-                        });
-                    }
+                        }
+                    });
 
                     if (fileMatched) matchFileCount++;
                     processedCount++;
                     
                     if (processedCount === fileArray.length) {
                         saveDatabase(); refreshSystemUI(); renderAdminImageTable();
-                        alert(`圖片處理完成！\n共讀取 ${fileArray.length} 個圖檔。\n成功將 ${matchFileCount} 張圖片黏合至 ${affectedQuestionsCount} 題試題上！`);
-                        activeSingleUploadId = null;
+                        alert(`處理完畢！上傳 ${fileArray.length} 張圖，成功黏合 ${affectedCount} 題試題。`);
                     }
                 };
                 reader.readAsDataURL(file);
