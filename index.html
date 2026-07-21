@@ -4,25 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>國中數學歷屆試題數據分析與管理系統</title>
-    <!-- Tailwind CSS & SheetJS (已完全拔除 Chart.js) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
         body { font-family: 'Noto Sans TC', sans-serif; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* 解決問題6：新增精緻、顯眼的自訂卷軸，不再讓人找不到底下內容 */
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; margin: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; border: 2px solid #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* 防止圖片選取干擾拖曳 */
+        img { user-select: none; }
     </style>
 </head>
-<body class="bg-slate-50 text-gray-800 min-h-screen flex flex-col">
+<body class="bg-slate-50 text-gray-800 h-screen flex flex-col overflow-hidden">
 
-    <header class="bg-slate-900 text-white shadow-md px-6 py-4 sticky top-0 z-40">
-        <div class="max-w-7xl mx-auto flex justify-between items-center">
+    <header class="bg-slate-900 text-white shadow-md px-6 py-3 shrink-0 z-40">
+        <div class="max-w-[1400px] mx-auto flex justify-between items-center">
             <div class="flex items-center gap-3">
                 <span class="text-2xl">📐</span>
                 <div>
-                    <h1 class="text-lg font-bold tracking-wide">國中數學歷屆試題對照管理系統</h1>
-                    <p class="text-xs text-slate-400 mt-0">均一平台課綱分類 ➔ 單元與主題試題檢索</p>
+                    <h1 class="text-lg font-bold tracking-wide">國中數學歷屆試題對照管理系統 <span class="text-blue-400 text-sm">v4.0 滿版升級</span></h1>
                 </div>
             </div>
             <button id="btnToggleAdminSidebar" class="flex items-center gap-1.5 text-xs bg-slate-800 hover:bg-slate-700 px-3 py-2 rounded-lg border border-slate-700 cursor-pointer transition-all">
@@ -38,152 +43,128 @@
             <button id="btnCloseSidebar" class="text-slate-400 hover:text-white text-sm">✕</button>
         </div>
         
-        <!-- 密碼登入區 -->
         <div id="adminLoginWallet" class="p-6 flex-1 flex flex-col justify-center space-y-3">
             <p class="text-xs text-slate-400 text-center">請輸入管理者密碼開啟後台</p>
             <input type="password" id="adminPwdInput" placeholder="請輸入密碼" class="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
             <button id="btnAdminLogin" class="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded font-medium transition-colors">登入後台</button>
         </div>
 
-        <div id="adminMainControls" class="hidden flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
-            <!-- 清除資料區 -->
+        <div id="adminMainControls" class="hidden flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
             <div class="bg-red-900/30 p-2.5 rounded-lg border border-red-800/50">
-                <button id="btnClearAllData" class="w-full bg-red-700 hover:bg-red-600 text-white text-[11px] py-1.5 rounded transition-colors flex items-center justify-center gap-1">
-                    <span>🗑️</span> 清除系統快取與所有資料
-                </button>
+                <button id="btnClearAllData" class="w-full bg-red-700 hover:bg-red-600 text-white text-[11px] py-1.5 rounded transition-colors">🗑️ 清除系統快取與所有資料</button>
             </div>
-
-            <!-- 新增年度通道 -->
-            <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-700">
-                <h4 class="text-xs font-bold text-slate-300 flex items-center gap-1 mb-2">📅 建立/開通會考年度通道</h4>
-                <div class="flex gap-2">
-                    <input type="text" id="newYearInput" placeholder="例如：114" class="flex-1 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-white">
-                    <button id="btnCreateYear" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1 rounded transition-colors">建立年度</button>
-                </div>
-            </div>
-
-            <!-- 修復1：支援拖曳與點擊的 Excel 匯入區 -->
+            <!-- Excel 匯入區 (支援拖曳) -->
             <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-700">
                 <h4 class="text-xs font-bold text-slate-300 flex items-center gap-1 mb-1">📊 匯入 Excel 對照表</h4>
-                <p class="text-[10px] text-slate-400 mb-2">可直接將 .xlsx 檔案拖曳至下方方框</p>
                 <div id="excelDropZone" class="border-2 border-dashed border-slate-500 rounded-lg p-4 bg-slate-800/50 hover:bg-slate-800 text-center cursor-pointer transition-all">
                     <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" class="hidden">
                     <p class="text-xs font-bold text-slate-200">📁 拖曳 Excel 到此處 或 點擊選取</p>
                 </div>
             </div>
-
-            <!-- 手動補登 -->
-            <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-700">
-                <h4 class="text-xs font-bold text-slate-300 flex items-center gap-1 mb-2">➕ 新增單筆試題/題組母列</h4>
-                <div class="space-y-1.5 text-[10px]">
-                    <div class="flex gap-1.5">
-                        <select id="addYearSelect" class="w-1/3 bg-slate-800 border border-slate-600 rounded px-1 py-1 text-white"></select>
-                        <input type="text" id="addNum" placeholder="題號(如 第1題 或 題組)" class="w-2/3 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-white">
-                    </div>
-                    <input type="text" id="addUnit" placeholder="大單元名稱 (題組文章請留空)" class="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-white">
-                    <input type="text" id="addTheme" placeholder="子主題名稱 (題組文章請留空)" class="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-white">
-                    <div class="flex gap-1.5">
-                        <input type="text" id="addImgName" placeholder="對應圖檔名" class="flex-1 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-white">
-                        <button id="btnManualAdd" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 rounded transition-colors">新增</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 修復1：支援拖曳與點擊的 圖片批次上傳區 -->
+            <!-- 圖片批次上傳區 (支援拖曳) -->
             <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-700">
                 <h4 class="text-xs font-bold text-slate-300 flex items-center gap-1">🖼️ 批次試題圖片上傳</h4>
                 <select id="adminUploadYearSelect" class="w-full bg-slate-800 border border-slate-600 rounded p-1 text-xs text-white my-1.5"></select>
                 <div id="imageDropZone" class="border-2 border-dashed border-amber-500/60 rounded-lg p-4 bg-slate-800/50 hover:bg-slate-800 text-center cursor-pointer transition-all">
                     <input type="file" id="imageFileInput" accept="image/*" multiple class="hidden">
-                    <p class="text-xs font-bold text-amber-400">📤 拖曳圖片檔到此處 或 點擊上傳</p>
+                    <p class="text-xs font-bold text-amber-400">📤 拖曳圖片到此處 或 點擊上傳</p>
                 </div>
             </div>
-
-            <!-- 後台管理對照表 -->
+            <!-- 後台預覽清單 -->
             <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-700 flex flex-col flex-1 min-h-[220px]">
                 <div class="flex justify-between items-center mb-2">
-                    <h4 class="text-xs font-bold text-slate-300">📋 對照管理清單 (依 Excel 順序)</h4>
+                    <h4 class="text-xs font-bold text-slate-300">📋 對照管理清單</h4>
                     <select id="adminManageYearSelect" class="bg-slate-800 border border-slate-600 rounded px-1 py-0.5 text-[10px] text-white w-24"></select>
                 </div>
-                <div id="adminImageTableContainer" class="flex-1 overflow-y-auto space-y-1.5 pr-1 no-scrollbar text-[11px]"></div>
+                <div id="adminImageTableContainer" class="flex-1 overflow-y-auto custom-scrollbar space-y-1.5 pr-1 text-[11px]"></div>
             </div>
         </div>
     </div>
 
-    <!-- 主畫面內容 -->
-    <main class="max-w-7xl mx-auto w-full p-4 lg:p-6 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <!-- 主畫面內容：鎖定高度，不隨內容膨脹 -->
+    <main class="max-w-[1400px] mx-auto w-full p-4 flex-1 flex gap-4 overflow-hidden">
         
-        <!-- 左側：年度選擇 + 文字單元主題展開樹 (取代原圖表區) -->
-        <div class="lg:col-span-5 space-y-4 flex flex-col">
-            <!-- 年度選擇區 -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-                <span class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">📅 選擇會考年度</span>
-                <div id="yearButtonsGroup" class="flex flex-wrap gap-2"></div>
+        <!-- ================= 左側：課綱結構區 ================= -->
+        <div class="w-[420px] flex flex-col gap-3 shrink-0 h-full">
+            
+            <!-- 年度與搜尋過濾 -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 shrink-0">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-gray-400">📅 會考年度</span>
+                    <select id="yearSelectFilter" class="text-xs bg-slate-100 border border-slate-200 rounded px-2 py-1 font-bold text-slate-700"></select>
+                </div>
+                <!-- 解決問題5：學期快速過濾頁籤 -->
+                <div class="flex flex-wrap gap-1 mb-2 border-t border-gray-100 pt-2" id="semesterTabs">
+                    <button data-sem="all" class="sem-tab text-[10px] px-2 py-1 rounded bg-blue-600 text-white font-bold">全部</button>
+                    <button data-sem="七年級上學期" class="sem-tab text-[10px] px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-600">七上</button>
+                    <button data-sem="七年級下學期" class="sem-tab text-[10px] px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-600">七下</button>
+                    <button data-sem="八年級上學期" class="sem-tab text-[10px] px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-600">八上</button>
+                    <button data-sem="八年級下學期" class="sem-tab text-[10px] px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-600">八下</button>
+                    <button data-sem="九年級上學期" class="sem-tab text-[10px] px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-600">九上</button>
+                    <button data-sem="九年級下學期" class="sem-tab text-[10px] px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-600">九下</button>
+                </div>
+                <input type="text" id="searchInput" placeholder="🔍 搜尋單元或主題關鍵字..." class="w-full text-xs border border-gray-300 rounded-md px-3 py-1.5 focus:border-blue-500 focus:outline-none">
             </div>
 
-            <!-- 修復3：純文字單元/主題展開清單 -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex flex-col flex-1 min-h-[480px]">
-                <div class="flex justify-between items-center border-b border-gray-100 pb-3 mb-3">
-                    <div>
-                        <h2 class="text-sm font-bold text-gray-900 flex items-center gap-1.5">📚 課綱單元與主題選單</h2>
-                        <p class="text-[10px] text-gray-400 mt-0.5">點擊單元展開主題，點擊主題進行篩選</p>
-                    </div>
-                    <button id="btnClearTreeFilter" class="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors hidden">
-                        顯示全部題目
-                    </button>
+            <!-- 單元主題清單 (自帶卷軸) -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 flex-1 flex flex-col overflow-hidden">
+                <div class="flex justify-between items-center border-b border-gray-100 pb-2 mb-2 shrink-0">
+                    <h2 class="text-sm font-bold text-gray-900">📚 課綱單元與主題選單</h2>
+                    <button id="btnCollapseAll" class="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded transition-colors">全部收合</button>
                 </div>
-
-                <!-- 單元/主題 Accordion 容器 -->
-                <div id="unitTreeContainer" class="flex-1 overflow-y-auto space-y-2 pr-1 no-scrollbar text-xs"></div>
+                <!-- 清單容器 -->
+                <div id="unitTreeContainer" class="flex-1 overflow-y-auto custom-scrollbar space-y-1.5 pr-1"></div>
             </div>
         </div>
 
-        <!-- 右側：試題清單與大圖對照區 -->
-        <div class="lg:col-span-7 bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex flex-col min-h-[550px]">
-            <div class="border-b border-gray-100 pb-3 mb-4 flex justify-between items-center">
-                <div>
-                    <h2 class="text-sm font-bold text-gray-900 flex items-center gap-1.5"><span>🔍</span> <span>試題與圖檔對照</span></h2>
-                    <p class="text-[10px] text-blue-600 font-medium mt-0.5" id="currentScopeIndicator">範圍：顯示全部題目</p>
+        <!-- ================= 右側：上下板塊區 (解決問題7) ================= -->
+        <div class="flex-1 flex flex-col gap-3 min-w-0 h-full">
+            
+            <!-- 【上板塊】試題對照選單區 (固定高度區間，顯示專屬卷軸) -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 h-[180px] shrink-0 flex flex-col">
+                <div class="flex justify-between items-center border-b border-gray-100 pb-2 mb-2 shrink-0">
+                    <div>
+                        <h2 class="text-sm font-bold text-gray-900 flex items-center gap-1.5"><span>🎯</span> <span>對應試題清單</span></h2>
+                        <p class="text-[10px] text-blue-600 font-medium mt-0.5" id="currentScopeIndicator">範圍：顯示全部題目</p>
+                    </div>
+                    <span id="filteredCountTag" class="text-[11px] bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-full font-bold border border-blue-100">0 題</span>
                 </div>
-                <span id="filteredCountTag" class="text-[11px] bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-full font-bold border border-blue-100"></span>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 flex-1 items-stretch">
-                <!-- 試題列表 (依 Excel 原始順序) -->
-                <div id="questionListCol" class="md:col-span-5 space-y-2 max-h-[550px] overflow-y-auto pr-1 no-scrollbar"></div>
                 
-                <!-- 圖片對照預覽區 -->
-                <div id="questionDetailCol" class="md:col-span-7 border border-gray-200 rounded-xl bg-slate-50 p-4 flex flex-col justify-between min-h-[380px]">
-                    <div id="detailEmptyState" class="m-auto text-center text-gray-400 text-xs space-y-2">
-                        <p class="text-3xl">🖼️</p>
-                        <p class="font-medium text-gray-500">點選左側項目以預覽試題圖檔</p>
-                    </div>
-
-                    <div id="detailContent" class="hidden flex flex-col h-full justify-between">
-                        <div class="space-y-3 flex-1 flex flex-col">
-                            <div class="flex justify-between items-start border-b border-gray-200 pb-2">
-                                <div>
-                                    <h4 id="detailTitle" class="font-bold text-[13px] text-blue-900"></h4>
-                                    <p id="detailUnitTheme" class="text-[10px] text-gray-500 mt-0.5"></p>
-                                </div>
-                                <span id="detailId" class="text-[9px] font-mono bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded"></span>
-                            </div>
-                            
-                            <div class="bg-white rounded-lg border border-gray-300 p-2 min-h-[300px] flex-1 flex items-center justify-center text-center shadow-inner overflow-hidden relative">
-                                <img id="detailImg" class="max-h-80 max-w-full object-contain hidden transition-all duration-200">
-                                <div id="noImgWarning" class="text-gray-400 text-[11px] space-y-1 hidden">
-                                    <p class="text-xl">⚠️</p><p>尚未配置或上傳圖檔</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                <!-- 試題卡片列表 -->
+                <div id="questionListCol" class="flex-1 overflow-y-auto custom-scrollbar space-y-1.5 pr-1">
+                    <!-- 題目卡片動態產生處 -->
                 </div>
             </div>
+
+            <!-- 【下板塊】試題圖檔滿版預覽區 -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex-1 flex flex-col overflow-hidden relative">
+                
+                <div class="flex justify-between items-start border-b border-gray-100 pb-2 mb-3 shrink-0">
+                    <div>
+                        <h4 id="detailTitle" class="font-bold text-[14px] text-blue-900">🖼️ 圖片預覽區</h4>
+                        <p id="detailUnitTheme" class="text-[11px] text-gray-500 mt-0.5">請於上方點選試題以檢視完整圖檔</p>
+                    </div>
+                    <span id="detailId" class="text-[9px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded"></span>
+                </div>
+                
+                <!-- 大圖滿版顯示區 (解決問題7：靠頂對齊、滿版寬度) -->
+                <div class="flex-1 bg-slate-50 border border-slate-200 rounded-lg overflow-y-auto custom-scrollbar p-2 flex justify-center items-start relative">
+                    
+                    <div id="detailEmptyState" class="m-auto text-center text-gray-400 space-y-2">
+                        <p class="text-4xl mb-2">👀</p>
+                        <p class="text-xs font-medium">尚未選取試題，或該試題無配置圖片</p>
+                    </div>
+
+                    <!-- 圖片靠上對齊，寬度自適應撐滿 -->
+                    <img id="detailImg" class="w-full max-w-4xl object-contain object-top hidden transition-all duration-300 rounded shadow-sm">
+                </div>
+            </div>
+
         </div>
     </main>
 
     <script>
-        // 【均一平台 國中數學標準課綱結構】
+        // 課綱標準結構
         const truthTable = {
             "M7A-1-1": { semester: "七年級上學期", unit: "第一章 整數運算與科學記號", theme: "1-1 數與數線" },
             "M7A-1-2": { semester: "七年級上學期", unit: "第一章 整數運算與科學記號", theme: "1-2 整數的加減運算" },
@@ -218,7 +199,7 @@
             "M8A-4-1": { semester: "八年級上學期", unit: "第四章 一元二次方程式", theme: "4-1 因式分解法解一元二次方程式" },
             "M8A-4-2": { semester: "八年級上學期", unit: "第四章 一元二次方程式", theme: "4-2 配方法與一元二次方程式的公式解" },
             "M8A-4-3": { semester: "八年級上學期", unit: "第四章 一元二次方程式", theme: "4-3 一元二次方程式的應用" },
-            "M8A-5-1": { semester: "八年級上學期", unit: "第五章 統計資料處理與圖表", theme: "5-1 相對與累積次數分配圖表" },
+            "M8A-5-1": { semester: "八年級上學期", unit: "第五章 統計資料處理與圖表", theme: "5-1 相沛與累積次數分配圖表" },
             "M8B-1-1": { semester: "八年級下學期", unit: "第一章 數列與等差級數", theme: "1-1 等差數列" },
             "M8B-1-2": { semester: "八年級下學期", unit: "第一章 數列與等差級數", theme: "1-2 等差級數" },
             "M8B-1-3": { semester: "八年級下學期", unit: "第一章 數列與等差級數", theme: "1-3 等比數列" },
@@ -244,47 +225,58 @@
             "M9B-3-1": { semester: "九年級下學期", unit: "第三章 立體幾何圖形", theme: "3-1 柱體、錐體與空間概念" }
         };
 
-        // 系統全局數據庫
-        let examDatabase = [];
-        let managedYears = ["115"];
+        // 解決問題3：內建 115 年度基本骨架資料（就算清空快取也會自動載入，不再空白）
+        const default115Base = [
+            { id: "115_第1題", year: "115", num: "第1題", unit: "第一章 整數運算與科學記號", theme: "1-2 整數的加減運算", expectedImgName: "1", imageName: "", imageBase64: "", excelRowIndex: 1 },
+            { id: "115_第23題", year: "115", num: "第23題", unit: "第二章 統計與機率", theme: "2-2 機率", expectedImgName: "題組", imageName: "", imageBase64: "", excelRowIndex: 23 },
+            { id: "115_第24題", year: "115", num: "第24題", unit: "第三章 立體幾何圖形", theme: "3-1 柱體、錐體與空間概念", expectedImgName: "題組", imageName: "", imageBase64: "", excelRowIndex: 24 },
+            { id: "115_題組", year: "115", num: "題組", unit: "", theme: "", expectedImgName: "題組", imageName: "", imageBase64: "", excelRowIndex: 25 }
+        ];
 
-        // 篩選條件
-        let currentFilterYear = "all";
+        // 系統狀態變數
+        let examDatabase = [];
+        let managedYears = [];
+        let currentFilterYear = "115";
         let currentFilterUnit = null;
         let currentFilterTheme = null;
-
-        // Accordion 展開狀態紀錄
-        let expandedUnits = new Set();
+        
+        // 解決問題5：學期與搜尋狀態，且「單獨展開」模式
+        let currentSemester = "all";
+        let searchKeyword = "";
+        let activeAccordionUnit = null; // 紀錄當前唯一展開的大單元
 
         window.addEventListener('DOMContentLoaded', () => {
             loadDatabase();
-            renderYearButtons();
+            renderYearDropdown();
             setupEventListeners();
             setupDragAndDrop();
             refreshSystemUI();
         });
 
         function loadDatabase() {
-            const storedDb = localStorage.getItem('math_exam_db_v3');
-            const storedYears = localStorage.getItem('math_managed_years');
+            const storedDb = localStorage.getItem('math_exam_db_v4');
+            const storedYears = localStorage.getItem('math_managed_years_v4');
             if (storedDb) {
-                try { examDatabase = JSON.parse(storedDb); } catch(e) { examDatabase = []; }
-            } else { examDatabase = []; }
+                try { examDatabase = JSON.parse(storedDb); } catch(e) { examDatabase = [...default115Base]; }
+            } else {
+                examDatabase = [...default115Base]; // 載入內建 115 資料
+            }
+            
             if (storedYears) {
                 try { managedYears = JSON.parse(storedYears); } catch(e) { managedYears = ["115"]; }
+            } else {
+                managedYears = ["115"];
             }
             updateGroupAssociations();
         }
 
         function saveDatabase() {
-            localStorage.setItem('math_exam_db_v3', JSON.stringify(examDatabase));
-            localStorage.setItem('math_managed_years', JSON.stringify(managedYears));
+            localStorage.setItem('math_exam_db_v4', JSON.stringify(examDatabase));
+            localStorage.setItem('math_managed_years_v4', JSON.stringify(managedYears));
         }
 
-        // 自動鏈結「題目」與「題組文章母列」
         function updateGroupAssociations() {
             examDatabase.sort((a,b) => (a.excelRowIndex || 0) - (b.excelRowIndex || 0));
-            
             let currentGroupStemId = null;
             let currentGroupImg = null;
 
@@ -294,11 +286,9 @@
                     currentGroupImg = q.expectedImgName;
                     q.belongsToGroupId = null;
                 } else {
-                    // 若此題目緊跟在題組後方，且檔名或脈絡相合，自動歸屬於該題組
                     if (currentGroupStemId && (q.expectedImgName === currentGroupImg || !q.expectedImgName || q.expectedImgName.includes('題組'))) {
                         q.belongsToGroupId = currentGroupStemId;
                     } else {
-                        // 當遇到獨立試題時，清除題組鎖定
                         if(q.expectedImgName && currentGroupImg && q.expectedImgName !== currentGroupImg) {
                             currentGroupStemId = null;
                             currentGroupImg = null;
@@ -309,55 +299,31 @@
             });
         }
 
-        function renderYearButtons() {
-            const container = document.getElementById('yearButtonsGroup');
-            container.innerHTML = "";
-            
+        function renderYearDropdown() {
+            const select = document.getElementById('yearSelectFilter');
+            select.innerHTML = `<option value="all">顯示全部年度</option>`;
             const allYears = [...new Set([...managedYears, ...examDatabase.map(i => i.year)])].sort((a,b) => b - a);
-            const btnClass = "font-medium text-xs py-1 px-3 rounded-lg cursor-pointer transition-colors ";
             
-            const allBtn = document.createElement('button');
-            allBtn.innerText = "顯示全部年度";
-            allBtn.className = btnClass + (currentFilterYear === "all" ? "bg-slate-800 text-white shadow" : "bg-gray-100 hover:bg-gray-200 text-gray-700");
-            allBtn.onclick = () => { currentFilterYear = "all"; clearFilters(); };
-            container.appendChild(allBtn);
-
             allYears.forEach(yr => {
-                const btn = document.createElement('button');
-                btn.innerText = `${yr} 年度`;
-                btn.className = btnClass + (currentFilterYear === yr ? "bg-slate-800 text-white shadow" : "bg-gray-100 hover:bg-gray-200 text-gray-700");
-                btn.onclick = () => { currentFilterYear = yr; clearFilters(); };
-                container.appendChild(btn);
+                const opt = new Option(`${yr} 年度`, yr);
+                if (yr === currentFilterYear) opt.selected = true;
+                select.appendChild(opt);
             });
 
-            updateAdminYearSelects(allYears);
-        }
-
-        function clearFilters() {
-            currentFilterUnit = null;
-            currentFilterTheme = null;
-            refreshSystemUI();
-        }
-
-        function updateAdminYearSelects(years) {
+            // 同步更新後台的年度選單
             const upSelect = document.getElementById('adminUploadYearSelect');
             const mgSelect = document.getElementById('adminManageYearSelect');
-            const addSelect = document.getElementById('addYearSelect');
-            
-            upSelect.innerHTML = ""; mgSelect.innerHTML = ""; addSelect.innerHTML = "";
-            years.forEach(yr => {
+            upSelect.innerHTML = ""; mgSelect.innerHTML = "";
+            allYears.forEach(yr => {
                 upSelect.appendChild(new Option(`${yr} 年度`, yr));
                 mgSelect.appendChild(new Option(`${yr} 年度`, yr));
-                addSelect.appendChild(new Option(`${yr} 年度`, yr));
             });
-            renderAdminImageTable();
         }
 
         function setupEventListeners() {
+            // 後台開關
             document.getElementById('btnToggleAdminSidebar').onclick = () => document.getElementById('adminSidebar').classList.remove('-translate-x-full');
             document.getElementById('btnCloseSidebar').onclick = () => document.getElementById('adminSidebar').classList.add('-translate-x-full');
-
-            // 後台密碼登入
             document.getElementById('btnAdminLogin').onclick = () => {
                 if (document.getElementById('adminPwdInput').value === "75947") {
                     document.getElementById('adminLoginWallet').classList.add('hidden');
@@ -365,75 +331,59 @@
                     renderAdminImageTable();
                 } else alert('密碼錯誤！');
             };
-
-            // 新增年度通道
-            document.getElementById('btnCreateYear').onclick = () => {
-                const yr = document.getElementById('newYearInput').value.trim();
-                if(!yr) return alert("請輸入正確的年度代碼！");
-                if(managedYears.includes(yr)) return alert("該年度通道早已存在！");
-                managedYears.push(yr);
-                document.getElementById('newYearInput').value = "";
-                saveDatabase(); renderYearButtons();
-                alert(`已成功開通 ${yr} 年度通道！`);
-            };
-
-            // 初始化清除
             document.getElementById('btnClearAllData').onclick = () => {
-                if(confirm("⚠️ 確定要清除全站快取與所有資料嗎？")) {
-                    examDatabase = []; managedYears = ["115"];
-                    currentFilterYear = "all"; currentFilterUnit = null; currentFilterTheme = null;
-                    saveDatabase(); renderYearButtons(); refreshSystemUI(); renderAdminImageTable();
-                    alert("系統已順利完成初始化清空。");
+                if(confirm("⚠️ 確定要清除所有資料嗎？(包含你自己上傳的檔案)")) {
+                    localStorage.removeItem('math_exam_db_v4');
+                    localStorage.removeItem('math_managed_years_v4');
+                    location.reload(); // 重整套用內建資料
                 }
             };
 
-            // 手動新增單筆
-            document.getElementById('btnManualAdd').onclick = () => {
-                const yr = document.getElementById('addYearSelect').value;
-                const num = document.getElementById('addNum').value.trim();
-                if(!num) return alert("題號為必填欄位！");
-                
-                const targetId = `${yr}_${num}`;
-                const maxIndex = examDatabase.length > 0 ? Math.max(...examDatabase.map(d => d.excelRowIndex || 0)) : 0;
-                
-                examDatabase.push({
-                    id: targetId, year: yr, num: num,
-                    unit: document.getElementById('addUnit').value.trim(),
-                    theme: document.getElementById('addTheme').value.trim(),
-                    expectedImgName: document.getElementById('addImgName').value.trim(),
-                    imageName: document.getElementById('addImgName').value.trim() ? `${document.getElementById('addImgName').value.trim()}.png` : "",
-                    imageBase64: "",
-                    excelRowIndex: maxIndex + 1
-                });
-                
-                document.getElementById('addNum').value = ""; document.getElementById('addImgName').value = "";
-                updateGroupAssociations(); saveDatabase(); refreshSystemUI(); renderAdminImageTable();
-                alert(`項目 [${num}] 已新增成功！`);
+            // 搜尋與過濾事件
+            document.getElementById('yearSelectFilter').onchange = (e) => {
+                currentFilterYear = e.target.value;
+                currentFilterUnit = null; currentFilterTheme = null;
+                refreshSystemUI();
+            };
+            
+            document.getElementById('searchInput').oninput = (e) => {
+                searchKeyword = e.target.value.trim().toLowerCase();
+                refreshSystemUI();
             };
 
-            document.getElementById('btnClearTreeFilter').onclick = clearFilters;
-            document.getElementById('adminManageYearSelect').onchange = renderAdminImageTable;
+            document.getElementById('btnCollapseAll').onclick = () => {
+                activeAccordionUnit = null;
+                currentFilterUnit = null; currentFilterTheme = null;
+                refreshSystemUI();
+            };
+
+            // 學期頁籤切換
+            document.querySelectorAll('.sem-tab').forEach(btn => {
+                btn.onclick = (e) => {
+                    document.querySelectorAll('.sem-tab').forEach(b => {
+                        b.className = "sem-tab text-[10px] px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-600";
+                    });
+                    e.target.className = "sem-tab text-[10px] px-2 py-1 rounded bg-blue-600 text-white font-bold";
+                    currentSemester = e.target.getAttribute('data-sem');
+                    activeAccordionUnit = null; // 切換學期自動收合
+                    refreshSystemUI();
+                };
+            });
         }
 
-        // 修復1：健全的 HTML5 拖曳 (Drag & Drop) 上傳處理
+        // HTML5 拖曳上傳
         function setupDragAndDrop() {
             const excelZone = document.getElementById('excelDropZone');
             const excelInput = document.getElementById('excelFileInput');
             excelZone.onclick = () => excelInput.click();
             excelInput.onchange = (e) => handleExcelImport(e.target.files[0]);
-
-            bindDropEvents(excelZone, (files) => {
-                if(files && files[0]) handleExcelImport(files[0]);
-            });
+            bindDropEvents(excelZone, (files) => { if(files && files[0]) handleExcelImport(files[0]); });
 
             const imgZone = document.getElementById('imageDropZone');
             const imgInput = document.getElementById('imageFileInput');
             imgZone.onclick = () => imgInput.click();
             imgInput.onchange = (e) => handleImageUpload(e.target.files);
-
-            bindDropEvents(imgZone, (files) => {
-                if(files && files.length > 0) handleImageUpload(files);
-            });
+            bindDropEvents(imgZone, (files) => { if(files && files.length > 0) handleImageUpload(files); });
         }
 
         function bindDropEvents(zone, onDropCallback) {
@@ -453,137 +403,143 @@
         }
 
         function refreshSystemUI() {
+            // 基本題庫過濾 (依照選擇年度)
             let pool = currentFilterYear !== "all" ? examDatabase.filter(q => q.year === currentFilterYear) : examDatabase;
 
-            // 標頭指示
-            let scopeTxt = currentFilterYear === "all" ? "全部開放年度" : `${currentFilterYear}年度`;
+            // 標示狀態
+            let scopeTxt = currentFilterYear === "all" ? "全部年度" : `${currentFilterYear}年度`;
             if(currentFilterTheme) scopeTxt += ` ➔ ${currentFilterTheme}`;
             else if(currentFilterUnit) scopeTxt += ` ➔ ${currentFilterUnit}`;
             document.getElementById('currentScopeIndicator').innerText = `範圍：${scopeTxt}`;
 
-            if(currentFilterUnit || currentFilterTheme) {
-                document.getElementById('btnClearTreeFilter').classList.remove('hidden');
-            } else {
-                document.getElementById('btnClearTreeFilter').classList.add('hidden');
-            }
-
-            // 渲染左側純文字展開樹
             renderUnitTree(pool);
 
-            // 修復2：右側試題清單精準過濾 (題組文章僅在對應題目存在時登場)
+            // 過濾要顯示在右側的試題
             let filteredQuestions = pool.filter(q => q.num !== '題組');
-            
             if (currentFilterTheme) {
                 filteredQuestions = filteredQuestions.filter(q => q.theme === currentFilterTheme);
             } else if (currentFilterUnit) {
                 filteredQuestions = filteredQuestions.filter(q => q.unit === currentFilterUnit);
+            } else {
+                // 如果沒有選特定單元主題，為了避免右側太亂，不顯示題目 (或顯示全部)
+                filteredQuestions = [];
             }
 
-            // 找出當前過濾出來的題目中有哪些需要「題組文章」
+            // 抓出需要的題組文章
             const neededGroupIds = new Set(filteredQuestions.map(q => q.belongsToGroupId).filter(Boolean));
-
             let displayPool = [];
+            
             if (currentFilterUnit || currentFilterTheme) {
-                // 僅拉入被需要的題組文章
                 const relevantStems = pool.filter(q => q.num === '題組' && neededGroupIds.has(q.id));
                 displayPool = [...filteredQuestions, ...relevantStems];
-            } else {
-                // 未篩選時，全數顯示
-                displayPool = [...pool];
             }
-
+            
             displayPool.sort((a,b) => (a.excelRowIndex || 0) - (b.excelRowIndex || 0));
-            document.getElementById('filteredCountTag').innerText = `共 ${displayPool.length} 筆項目`;
+            document.getElementById('filteredCountTag').innerText = `${displayPool.length} 題`;
             renderQuestionList(displayPool);
         }
 
-        // 修復3：渲染純文字單元/主題展開清單
+        // 解決問題1 & 2 & 5：文字單元展開樹重製
         function renderUnitTree(pool) {
             const container = document.getElementById('unitTreeContainer');
             container.innerHTML = "";
 
-            // 只計算真正的題目，不計入題組文章
+            // 整理各單元與主題的題數 (只計算非題組母列)
             const questionOnlyPool = pool.filter(q => q.num !== '題組' && q.unit);
-
-            // 彙整資料庫中各單元與主題的數量
             const unitCounts = {};
             const themeCounts = {};
-
             questionOnlyPool.forEach(q => {
                 unitCounts[q.unit] = (unitCounts[q.unit] || 0) + 1;
                 if(q.theme) themeCounts[q.theme] = (themeCounts[q.theme] || 0) + 1;
             });
 
-            // 以 truthTable 順序拉出所有大單元
-            const uniqueUnits = [...new Set(Object.values(truthTable).map(t => t.unit))];
+            // 整理所有大單元及其屬性，支援學期與搜尋過濾
+            let displayUnits = [];
+            const uniqueUnitsMap = new Map();
 
-            if (Object.keys(unitCounts).length === 0) {
-                return container.innerHTML = `<p class="text-xs text-gray-400 text-center py-12">此區間尚無試題數據</p>`;
+            Object.values(truthTable).forEach(item => {
+                if (!uniqueUnitsMap.has(item.unit)) {
+                    uniqueUnitsMap.set(item.unit, { semester: item.semester, name: item.unit, themes: new Set() });
+                }
+                uniqueUnitsMap.get(item.unit).themes.add(item.theme);
+            });
+
+            uniqueUnitsMap.forEach((data, unitName) => {
+                // 學期過濾
+                if (currentSemester !== "all" && data.semester !== currentSemester) return;
+                
+                // 關鍵字搜尋過濾 (單元名或主題名符合即可)
+                if (searchKeyword) {
+                    const matchUnit = unitName.toLowerCase().includes(searchKeyword);
+                    const matchTheme = Array.from(data.themes).some(t => t.toLowerCase().includes(searchKeyword));
+                    if (!matchUnit && !matchTheme) return;
+                }
+                displayUnits.push(data);
+            });
+
+            if (displayUnits.length === 0) {
+                return container.innerHTML = `<p class="text-xs text-gray-400 text-center py-6">無符合條件的單元</p>`;
             }
 
-            uniqueUnits.forEach(unitName => {
+            displayUnits.forEach(unitData => {
+                const unitName = unitData.name;
                 const countInUnit = unitCounts[unitName] || 0;
-                if (countInUnit === 0) return; // 沒題目的單元直接隱藏，保持畫面簡潔
+                
+                // 解決問題5：手風琴單一展開模式
+                const isExpanded = activeAccordionUnit === unitName;
+                const isUnitActive = currentFilterUnit === unitName && !currentFilterTheme;
 
                 const unitCard = document.createElement('div');
-                const isUnitActive = currentFilterUnit === unitName && !currentFilterTheme;
-                const isExpanded = expandedUnits.has(unitName) || currentFilterUnit === unitName || isUnitActive;
+                unitCard.className = `border rounded-md overflow-hidden transition-all ${isUnitActive ? 'border-blue-500 bg-blue-50/50' : 'border-gray-200 bg-white'}`;
 
-                unitCard.className = `border rounded-lg overflow-hidden transition-all ${isUnitActive ? 'border-blue-500 bg-blue-50/30' : 'border-gray-200 bg-white'}`;
-
-                // 找出屬於該大單元的所有子主題 (遵照 truthTable)
-                const themesInUnit = [...new Set(
-                    Object.values(truthTable)
-                        .filter(t => t.unit === unitName)
-                        .map(t => t.theme)
-                )];
-
-                // 單元標頭
+                // 單元標頭 (解決問題1：點擊順暢展開收合)
                 const header = document.createElement('div');
-                header.className = "flex justify-between items-center p-2.5 cursor-pointer hover:bg-slate-50 transition-colors";
+                header.className = "flex justify-between items-center p-2 cursor-pointer hover:bg-slate-50 transition-colors";
                 header.innerHTML = `
-                    <div class="flex items-center gap-2 font-bold text-gray-800">
-                        <span class="text-gray-400 text-[10px]">${isExpanded ? '▼' : '▶'}</span>
-                        <span>${unitName}</span>
+                    <div class="flex items-center gap-1.5 font-bold text-gray-800">
+                        <span class="text-gray-400 text-[10px] w-3 text-center">${isExpanded ? '▼' : '▶'}</span>
+                        <span class="text-xs">${unitName}</span>
                     </div>
-                    <span class="text-[10px] bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-full">${countInUnit} 題</span>
+                    <span class="text-[9px] ${countInUnit > 0 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-400'} font-semibold px-1.5 py-0.5 rounded">${countInUnit} 題</span>
                 `;
 
                 header.onclick = () => {
-                    if (expandedUnits.has(unitName)) expandedUnits.delete(unitName);
-                    else expandedUnits.add(unitName);
-                    
-                    // 點擊大單元標題即可進行篩選
-                    currentFilterUnit = unitName;
+                    // 點擊時，若已經是展開的就關閉；若未展開則指定為唯一展開單元
+                    activeAccordionUnit = isExpanded ? null : unitName;
+                    currentFilterUnit = isExpanded ? null : unitName;
                     currentFilterTheme = null;
                     refreshSystemUI();
                 };
 
                 unitCard.appendChild(header);
 
-                // 子主題清單
+                // 子主題清單 (解決問題2：包含 0 題的也要顯示)
                 if (isExpanded) {
                     const themeListContainer = document.createElement('div');
-                    themeListContainer.className = "bg-slate-50/70 border-t border-gray-100 p-1.5 space-y-1 pl-6";
+                    themeListContainer.className = "bg-slate-50/70 border-t border-gray-100 p-1 space-y-0.5 pl-6";
 
-                    themesInUnit.forEach(themeName => {
+                    Array.from(unitData.themes).forEach(themeName => {
                         const themeCount = themeCounts[themeName] || 0;
-                        if(themeCount === 0) return;
+                        
+                        // 若有搜尋關鍵字，未命中的主題隱藏 (除非單元本身命中)
+                        if (searchKeyword && !themeName.toLowerCase().includes(searchKeyword) && !unitName.toLowerCase().includes(searchKeyword)) {
+                            return; 
+                        }
 
                         const themeRow = document.createElement('div');
                         const isThemeActive = currentFilterTheme === themeName;
 
                         themeRow.className = `flex justify-between items-center p-1.5 rounded cursor-pointer transition-colors ${
-                            isThemeActive ? 'bg-blue-600 text-white font-bold shadow-xs' : 'hover:bg-gray-200/60 text-gray-700'
+                            isThemeActive ? 'bg-blue-600 text-white font-bold' : 'hover:bg-gray-200/60 text-gray-600'
                         }`;
 
                         themeRow.innerHTML = `
-                            <span class="text-xs">📌 ${themeName}</span>
-                            <span class="text-[10px] ${isThemeActive ? 'bg-blue-800 text-white' : 'bg-gray-200 text-gray-600'} px-1.5 py-0.5 rounded">${themeCount} 題</span>
+                            <span class="text-[11px]">📌 ${themeName}</span>
+                            <span class="text-[9px] ${isThemeActive ? 'bg-blue-800 text-white' : (themeCount > 0 ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-400')} px-1.5 rounded">${themeCount} 題</span>
                         `;
 
                         themeRow.onclick = (e) => {
-                            e.stopPropagation(); // 阻止事件冒泡
+                            e.stopPropagation();
                             currentFilterUnit = unitName;
                             currentFilterTheme = themeName;
                             refreshSystemUI();
@@ -591,118 +547,117 @@
 
                         themeListContainer.appendChild(themeRow);
                     });
-
                     unitCard.appendChild(themeListContainer);
                 }
-
                 container.appendChild(unitCard);
             });
         }
 
-        // 右側清單渲染
         function renderQuestionList(listPool) {
             const listCol = document.getElementById('questionListCol');
             listCol.innerHTML = "";
-            if (listPool.length === 0) return listCol.innerHTML = `<p class="text-xs text-gray-400 text-center py-8">本區間無對應試題</p>`;
 
-            listPool.forEach(q => {
+            if (listPool.length === 0) {
+                // 清空預覽
+                document.getElementById('detailEmptyState').classList.remove('hidden');
+                document.getElementById('detailImg').classList.add('hidden');
+                document.getElementById('detailTitle').innerText = "🖼️ 圖片預覽區";
+                document.getElementById('detailUnitTheme').innerText = "請於上方點選試題以檢視完整圖檔";
+                document.getElementById('detailId').innerText = "";
+                
+                if (currentFilterUnit || currentFilterTheme) {
+                    listCol.innerHTML = `<p class="text-xs text-gray-400 text-center py-6">本主題歷屆尚無出題紀錄</p>`;
+                } else {
+                    listCol.innerHTML = `<p class="text-xs text-gray-400 text-center py-6">請在左側點選單元或主題以檢視題目</p>`;
+                }
+                return;
+            }
+
+            // 建立卡片
+            listPool.forEach((q, index) => {
                 const card = document.createElement('div');
                 const isGroupStem = q.num === '題組';
                 
-                if (isGroupStem) {
-                    card.className = "bg-amber-50/80 border border-amber-300 rounded-lg p-2.5 hover:border-amber-500 cursor-pointer transition-all flex justify-between items-center";
-                } else {
-                    card.className = "bg-white border border-gray-200 rounded-lg p-2.5 hover:border-blue-500 cursor-pointer transition-all flex justify-between items-center";
-                }
+                card.className = `question-card border rounded-lg p-2 cursor-pointer transition-all flex justify-between items-center ${
+                    isGroupStem ? 'bg-amber-50/50 border-amber-200 hover:border-amber-400' : 'bg-white border-gray-200 hover:border-blue-400'
+                }`;
 
-                const dotColor = q.imageBase64 ? "bg-emerald-500" : (q.expectedImgName ? "bg-amber-400" : "bg-gray-300");
-                const titleText = isGroupStem ? `【${q.year}年 ➔ 題組背景文章】` : `${q.year}年 ➔ ${q.num}`;
-                const subText = isGroupStem ? "📄 共同題幹引文/對照圖檔" : `${q.unit || '未歸類單元'} ➔ ${q.theme || '未歸類主題'}`;
-
+                const statusColor = q.imageBase64 ? "bg-emerald-500" : (q.expectedImgName ? "bg-amber-400" : "bg-gray-300");
+                const titleText = isGroupStem ? `【題組背景引文】` : `${q.num}`;
+                
                 card.innerHTML = `
-                    <div class="flex items-center gap-2 overflow-hidden w-full">
-                        <span class="w-2 h-2 rounded-full ${dotColor} shrink-0"></span>
-                        <div class="truncate w-full">
-                            <h4 class="font-bold text-xs ${isGroupStem ? 'text-amber-900' : 'text-slate-800'}">${titleText}</h4>
-                            <p class="text-[9px] text-gray-400 truncate mt-0.5">${subText}</p>
-                        </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full ${statusColor} shrink-0"></span>
+                        <h4 class="font-bold text-[11px] ${isGroupStem ? 'text-amber-900' : 'text-slate-700'}">${titleText}</h4>
                     </div>
+                    <span class="text-[9px] text-gray-400">${q.year}年</span>
                 `;
                 
                 card.onclick = () => {
-                    document.querySelectorAll('#questionListCol > div').forEach(d => d.classList.remove('border-blue-600', 'bg-blue-50/40', 'border-amber-600', 'bg-amber-100/50'));
-                    if(isGroupStem) card.classList.add('border-amber-600', 'bg-amber-100/50');
-                    else card.classList.add('border-blue-600', 'bg-blue-50/40');
+                    document.querySelectorAll('.question-card').forEach(c => c.classList.remove('border-blue-600', 'bg-blue-50', 'shadow-sm', 'border-amber-600'));
+                    if(isGroupStem) card.classList.add('border-amber-600', 'bg-amber-50', 'shadow-sm');
+                    else card.classList.add('border-blue-600', 'bg-blue-50', 'shadow-sm');
                     showQuestionDetail(q);
                 };
                 listCol.appendChild(card);
             });
+
+            // 解決問題4：自動預選第一題並顯示預覽
+            const firstCard = listCol.firstChild;
+            if (firstCard) {
+                firstCard.click(); 
+                // 將捲軸滾到最頂端
+                listCol.scrollTop = 0;
+            }
         }
 
+        // 解決問題7：滿版大圖顯示
         function showQuestionDetail(q) {
             document.getElementById('detailEmptyState').classList.add('hidden');
-            document.getElementById('detailContent').classList.remove('hidden');
             
             const isGroupStem = q.num === '題組';
-            document.getElementById('detailTitle').innerText = isGroupStem ? `📄 ${q.year} 年度 － 題組共同背景圖檔` : `📐 ${q.year} 年度 － ${q.num}`;
-            document.getElementById('detailUnitTheme').innerText = isGroupStem ? "說明：此項目為題組共同引文，無獨立單元主題節點" : `歸屬：${q.unit} ➔ ${q.theme || '無主題'}`;
-            document.getElementById('detailId').innerText = `ID: ${q.id}`;
+            document.getElementById('detailTitle').innerText = isGroupStem ? `📄 ${q.year} 年度 － 題組共同引文` : `📐 ${q.year} 年度 － ${q.num}`;
+            document.getElementById('detailUnitTheme').innerText = isGroupStem ? "說明：此項目為題組引文，提供子題目共用" : `對應：${q.unit} ➔ ${q.theme || '無主題'}`;
+            document.getElementById('detailId').innerText = `檔案要求: ${q.expectedImgName || '未指定'}`;
 
             const detailImg = document.getElementById('detailImg');
-            const noImgWarning = document.getElementById('noImgWarning');
 
             if (q.imageBase64) {
                 detailImg.src = q.imageBase64; 
                 detailImg.classList.remove('hidden'); 
-                noImgWarning.classList.add('hidden');
             } else { 
                 detailImg.classList.add('hidden'); 
-                noImgWarning.classList.remove('hidden'); 
+                document.getElementById('detailEmptyState').classList.remove('hidden');
+                document.getElementById('detailEmptyState').innerHTML = `
+                    <p class="text-4xl mb-2">⚠️</p>
+                    <p class="text-xs font-medium">尚未上傳此題圖片<br><span class="text-[10px] text-gray-400 mt-1 block">預期圖檔名：${q.expectedImgName}.png</span></p>
+                `;
             }
         }
 
-        // 後台管理列表
+        // --- Excel & 圖片匯入相關邏輯維持不變 ---
         function renderAdminImageTable() {
             const container = document.getElementById('adminImageTableContainer');
             container.innerHTML = "";
             const targetYear = document.getElementById('adminManageYearSelect').value;
             if(!targetYear) return;
-
-            const yearRows = examDatabase.filter(q => q.year === targetYear);
-            if(yearRows.length === 0) return container.innerHTML = `<p class="text-[10px] text-slate-500 text-center py-2">該年度尚無數據</p>`;
-
-            yearRows.sort((a, b) => (a.excelRowIndex || 0) - (b.excelRowIndex || 0));
+            const yearRows = examDatabase.filter(q => q.year === targetYear).sort((a, b) => (a.excelRowIndex || 0) - (b.excelRowIndex || 0));
+            if(yearRows.length === 0) return container.innerHTML = `<p class="text-[10px] text-slate-500 text-center py-2">該年度無數據</p>`;
 
             yearRows.forEach(q => {
                 const wrapper = document.createElement('div');
-                const isGroup = q.num === '題組';
-                wrapper.className = `flex flex-col p-1.5 rounded border ${isGroup ? 'bg-amber-950/20 border-amber-800/40' : 'bg-slate-800 border-slate-700'}`;
-                
-                const topRow = document.createElement('div');
-                topRow.className = "flex justify-between items-center";
-                
+                wrapper.className = `flex flex-col p-1.5 rounded border ${q.num === '題組' ? 'bg-amber-950/20 border-amber-800/40' : 'bg-slate-800 border-slate-700'}`;
                 const fileColorClass = q.imageBase64 ? "text-emerald-400" : (q.expectedImgName ? "text-amber-400" : "text-rose-400");
-                const statusTxt = q.imageBase64 ? "✔️ 圖片已就緒" : (q.expectedImgName ? `等候圖片: ${q.expectedImgName}` : "❌ 未配置檔名");
-                const displayName = isGroup ? "【題組背景引文】" : q.num;
-
-                topRow.innerHTML = `
-                    <div class="truncate pr-2 cursor-pointer flex-1" onclick="this.parentElement.nextElementSibling.classList.toggle('hidden')">
-                        <span class="font-bold ${isGroup ? 'text-amber-300':'text-slate-200'}">${displayName}:</span>
-                        <span class="${fileColorClass} text-[9px] ml-1"> ${statusTxt} </span>
-                        ${q.imageBase64 ? '<span class="ml-1 text-slate-400 text-[10px] bg-slate-700 px-1 rounded hover:text-white">👁️ 預覽</span>' : ''}
+                
+                wrapper.innerHTML = `
+                    <div class="flex justify-between items-center cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                        <span class="font-bold text-slate-200 truncate pr-2">${q.num === '題組' ? '【題組引文】' : q.num}</span>
+                        <span class="${fileColorClass} text-[9px] shrink-0">${q.imageBase64 ? "✔️ 圖片就緒" : (q.expectedImgName ? `等候圖檔` : "❌ 未配置")}</span>
+                    </div>
+                    <div class="hidden mt-1 p-1 bg-slate-900 rounded border border-slate-700 text-center">
+                        ${q.imageBase64 ? `<img src="${q.imageBase64}" class="max-h-20 mx-auto object-contain">` : `<span class="text-[10px] text-slate-500">尚無圖檔</span>`}
                     </div>
                 `;
-                
-                const previewRow = document.createElement('div');
-                previewRow.className = "hidden mt-2 p-1 bg-slate-900 rounded border border-slate-700 text-center";
-                if(q.imageBase64) {
-                    previewRow.innerHTML = `<img src="${q.imageBase64}" class="max-h-32 mx-auto object-contain">`;
-                } else {
-                    previewRow.innerHTML = `<span class="text-[10px] text-slate-500">尚無圖檔</span>`;
-                }
-
-                wrapper.appendChild(topRow);
-                wrapper.appendChild(previewRow);
                 container.appendChild(wrapper);
             });
         }
@@ -712,13 +667,10 @@
             const reader = new FileReader();
             reader.onload = function(e) {
                 const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-                const sheetName = workbook.SheetNames[0];
-                const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+                const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
                 if(rows.length === 0) return alert('Excel 內容為空！');
 
-                const yearMatch = sheetName.match(/\d{2,3}/);
-                const defaultYear = yearMatch ? yearMatch[0] : '115';
-
+                const defaultYear = workbook.SheetNames[0].match(/\d{2,3}/)?.[0] || '115';
                 let maxIndex = examDatabase.length > 0 ? Math.max(...examDatabase.map(d => d.excelRowIndex || 0)) : 0;
                 let importedCount = 0;
 
@@ -748,8 +700,7 @@
                         importedCount++;
                     }
                 });
-
-                updateGroupAssociations(); saveDatabase(); renderYearButtons(); refreshSystemUI(); renderAdminImageTable();
+                updateGroupAssociations(); saveDatabase(); renderYearDropdown(); refreshSystemUI(); renderAdminImageTable();
                 alert(`Excel 處理成功！共匯入/更新 ${importedCount} 筆項目。`);
             };
             reader.readAsArrayBuffer(file);
@@ -762,26 +713,20 @@
             const fileArray = Array.from(files);
 
             fileArray.forEach(file => {
-                const rawName = file.name;
-                const cleanNameWithoutExt = rawName.substring(0, rawName.lastIndexOf('.')) || rawName;
+                const cleanName = (file.name.substring(0, file.name.lastIndexOf('.')) || file.name).trim();
                 const reader = new FileReader();
-                
                 reader.onload = function(e) {
                     examDatabase.forEach((q, idx) => {
-                        if (q.year === targetYear) {
-                            const isImgMatch = q.expectedImgName && (q.expectedImgName === rawName || q.expectedImgName === cleanNameWithoutExt);
-                            if (isImgMatch) {
-                                examDatabase[idx].imageName = rawName;
-                                examDatabase[idx].imageBase64 = e.target.result;
-                                affectedCount++;
-                            }
+                        if (q.year === targetYear && q.expectedImgName && q.expectedImgName.trim() === cleanName) {
+                            examDatabase[idx].imageName = file.name;
+                            examDatabase[idx].imageBase64 = e.target.result;
+                            affectedCount++;
                         }
                     });
-
                     processedCount++;
                     if (processedCount === fileArray.length) {
                         saveDatabase(); refreshSystemUI(); renderAdminImageTable();
-                        alert(`圖片黏合完成！共處理 ${fileArray.length} 張圖檔，成功綁定 ${affectedCount} 個項目！`);
+                        alert(`處理完成！共上傳 ${fileArray.length} 張，成功綁定 ${affectedCount} 題！`);
                     }
                 };
                 reader.readAsDataURL(file);
